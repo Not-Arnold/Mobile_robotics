@@ -59,9 +59,10 @@ void playGear5Chorus() {
 
 void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
+  playGear5Chorus();
+  delay(3000);
 }
 
 void loop() {
-  playGear5Chorus();
-  delay(3000);
+
 }
