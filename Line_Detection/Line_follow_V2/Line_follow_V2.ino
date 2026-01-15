@@ -83,6 +83,24 @@ void playGear5Chorus() {
   playNote(rest, 100);
 }
 
+//Accomplishment sound when node is reached - Final Fantasy
+void nodeReached(){
+  playNote(b4, 150); 
+  playNote(b4, 150);
+  playNote(b4, 150);
+  playNote(b4, 175);
+
+  playNote(rest, 125);
+
+  playNote(c4, 150);
+  playNote(f4, 150); 
+  
+  playNote(rest, 125);
+
+  playNote(b4, 125);
+  playNote(f4, 125);
+  playNote(b4, 125);
+}
 
 int MAXspeed(int speed)
 {
