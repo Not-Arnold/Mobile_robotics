@@ -1,0 +1,105 @@
+//Motor control
+const int motor1PWM = 37;
+const int motor1Phase = 38;
+const int motor2PWM = 39;
+const int motor2Phase = 20;
+
+const int MAXPWH = 200;
+const float ratio = 0.93;
+int turn = 40;
+
+int AnalogValue[5] = {0,0,0,0,0};
+const int AnalogPin[5] = {7, 15, 16, 17, 18}; // keep 8 free for tone O/P music
+const int weights[5] = {-2, -1, 0, 1, 2};
+bool s[5];
+
+int baseSpeed = 140;      // cruise speed (tune)
+float Kp = 55.0;          // proportional gain (tune)
+float Kd = 25.0;          // derivative gain (tune)
+float lastError = 0;
+
+int lastSeenDir = 1;      // +1 = last line on right, -1 = last line on left
+
+
+int MAXspeed(int speed)
+{
+  if (speed < 0){return 0;}
+  else if (speed > MAXPWH){return MAXPWH;}
+  return speed;
+}
+
+void forward(int L_speed = MAXPWH, int R_speed = MAXPWH)
+{
+  L_speed = MAXspeed(L_speed);
+  R_speed = MAXspeed(R_speed);
+
+  digitalWrite(motor1Phase, HIGH); 
+  analogWrite(motor1PWM, L_speed*ratio); 
+  //Serial.println("Forward"); 
+  digitalWrite(motor2Phase, LOW); 
+  analogWrite(motor2PWM, R_speed); 
+ 
+}
+
+void backward(int L_speed = MAXPWH, int R_speed = MAXPWH)
+{
+  L_speed = MAXspeed(L_speed);
+  R_speed = MAXspeed(R_speed);
+
+  digitalWrite(motor1Phase, LOW);
+  analogWrite(motor1PWM, L_speed*ratio);
+  //Serial.println("Backward");
+  digitalWrite(motor2Phase, HIGH);
+  analogWrite(motor2PWM, R_speed);
+ 
+}
+
+void setup()
+{
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  pinMode(motor1PWM, OUTPUT);
+  pinMode(motor1Phase, OUTPUT);
+  pinMode(motor2PWM, OUTPUT);
+  pinMode(motor2Phase, OUTPUT);
+}
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  for (int i = 0; i<5; i++){
+
+    AnalogValue[i]=analogRead(AnalogPin[i]);
+    Serial.print(AnalogValue[i]); // This prints the actual analog sensor reading
+    Serial.print("\t"); //tab over on screen
+
+    if (AnalogValue[i]<500){s[i]=1;}
+    else {s[i]=0;}
+  }
+
+  Serial.println(""); //carriage return
+  delay(100); // display new set of readings every 600mS
+
+  int sum = 0;
+  for (int i = 0; i < 5; i++){
+    if (s[i] == 1){
+      sum += weights[i];
+    }
+  }
+
+  if (sum == 0){
+    forward();
+    Serial.println("Straight ahead");
+    }
+  else{
+    if (sum<0){
+      forward(MAXPWH - sum*40, MAXPWH + sum*turn);
+      Serial.println("Left turn");
+    }
+    else{
+      forward(MAXPWH - sum*40, MAXPWH + sum*turn);
+      Serial.println("Right turn");
+    }
+  }
+}
