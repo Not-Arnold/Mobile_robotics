@@ -1,0 +1,27 @@
+#include <WiFi.h>
+
+// Replace with your network credentials
+const char* ssid = "TP";
+const char* password = "cntp4041";
+
+void setup() {
+Serial.begin(115200);
+pinMode(LED_BUILTIN, OUTPUT);
+
+// Set ESP32 to Station mode
+WiFi.mode(WIFI_STA);
+WiFi.begin(ssid, password);
+
+Serial.println("\nConnecting to WiFi...");
+
+// Wait until connected
+while (WiFi.status() != WL_CONNECTED) {
+Serial.print(".");
+delay(500);
+}
+
+Serial.println("\nConnected to WiFi!");
+Serial.print("ESP32 IP Address: ");
+Serial.println(WiFi.localIP());
+}
+
