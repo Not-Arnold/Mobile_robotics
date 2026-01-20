@@ -1,0 +1,82 @@
+#include <WiFi.h>
+
+// Replace with your network credentials
+const char* ssid = "TP";
+const char* password = "cntp4041";
+
+void setup() {
+Serial.begin(115200);
+pinMode(LED_BUILTIN, OUTPUT);
+
+// Set ESP32 to Station mode
+WiFi.mode(WIFI_STA);
+WiFi.begin(ssid, password);
+
+Serial.println("\nConnecting to WiFi...");
+
+// Wait until connected
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+
+  Serial.println("\nConnected to WiFi!");
+  Serial.print("ESP32 IP Address: ");
+  Serial.println(WiFi.localIP());
+}
+
+// post body
+String postBody("position=");
+postBody += position;
+// send post request and headers
+client.println("POST /api/arrived/asun2881 HTTP/1.1");
+client.println("Content-Type: application/x-www-form-urlencoded");
+client.print("Content-Length: ");
+client.println(postBody.length());
+client.println();
+// send post body
+client.println(postBody);
+
+// read buffer size for HTTP response
+#define BUFSIZE 512
+String readResponse() {
+  char buffer[BUFSIZE];
+  memset(buffer, 0, BUFSIZE);
+  client.readBytes(buffer, BUFSIZE);
+  String response(buffer);
+  return response;
+}
+int getStatusCode(String& response) {
+  String code = response.substring(9, 12);
+  return code.toInt();
+}
+String getResponseBody(String& response) {
+  int split = 
+  response.indexOf("\r\n\r\n");
+  String body = 
+  response.substring(split+4, 
+  response.length());
+  body.trim();
+  return body;
+}
+
+int destination
+// read response
+String response = readResponse();
+// get status code
+int statusCode = 
+getStatusCode(response);
+if (statusCode == 200) {
+  // success, read body
+  String body = 
+  getResponseBody(response);
+  // check if at final destination
+  if (!body.equals(“Finished")) {
+  destination = body.toInt();
+  }
+}
+
+
+void loop(){
+
+}
