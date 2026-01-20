@@ -1,5 +1,5 @@
 
-#define BUZZER_PIN 4   // use a safe GPIO
+#define BUZZER_PIN 4   // use a safe GPIO and add 4.70 KΩ resistor in series to buzzer
 
 //Motor control
 const int motor1PWM = 37;
@@ -140,6 +140,11 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(9600);
 
+  // buzzer setup
+  pinMode(BUZZER_PIN, OUTPUT);
+  playGear5Chorus();
+
+  // Motor setup
   pinMode(motor1PWM, OUTPUT);
   pinMode(motor1Phase, OUTPUT);
   pinMode(motor2PWM, OUTPUT);
