@@ -1,0 +1,138 @@
+#include <WiFi.h>
+
+bool nodeArmed = true;                 // allows one trigger per node
+unsigned long lastNodeTime = 0;
+const unsigned long nodeCooldownMs = 600; // tune: 300–1000ms
+
+// WiFi credentials
+const char* ssid = "TP";
+const char* password = "cntp4041";
+
+// Server settings (CHANGE THESE)
+const char* host = "3.250.38.184";          // e.g. "192.168.1.50" or "myserver.com"
+const uint16_t port = 8000;                  // 80 for HTTP (not HTTPS)
+const char* path = "/api/arrived/asun2881";
+
+WiFiClient client;
+
+int destination = -1;   // updated from server
+int position = 0;       // your value to send (update this from your robot logic)
+
+static String readResponse(uint32_t timeoutMs = 3000) {
+  String resp;
+  uint32_t start = millis();
+  while (millis() - start < timeoutMs) {
+    while (client.available()) {
+      resp += (char)client.read();
+      start = millis(); // reset timeout as data arrives
+    }
+    if (!client.connected()) break;
+    delay(5);
+  }
+  return resp;
+}
+
+static int getStatusCode(const String& response) {
+  // Expect: "HTTP/1.1 200 OK"
+  if (response.length() < 12) return -1;
+  String code = response.substring(9, 12);
+  return code.toInt();
+}
+
+static String getResponseBody(const String& response) {
+  int split = response.indexOf("\r\n\r\n");
+  if (split < 0) return "";
+  String body = response.substring(split + 4);
+  body.trim();
+  return body;
+}
+
+static bool sendArrivedPost(int pos) {
+  if (!client.connect(host, port)) {
+    Serial.println("HTTP connect failed");
+    return false;
+  }
+
+  String postBody = "node=" + String(pos);
+
+  client.println(String("POST ") + path + " HTTP/1.1");
+  client.println(String("Host: ") + host);
+  client.println("Connection: close");
+  client.println("Content-Type:application/x-www-form-urlencoded");
+  client.print("Content-Length: ");
+  client.println(postBody.length());
+  client.println();
+  client.print(postBody);
+
+  String response = readResponse(4000);
+  client.stop();
+
+  int statusCode = getStatusCode(response);
+  Serial.print("HTTP status: ");
+  Serial.println(statusCode);
+
+  if (statusCode != 200) {
+    Serial.println("Non-200 response:");
+    Serial.println(response);
+    return false;
+  }
+
+  String body = getResponseBody(response);
+  Serial.print("Body: ");
+  Serial.println(body);
+
+  if (body != "Finished") {
+    destination = body.toInt();
+  }
+
+  return true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  Serial.println("\nConnecting to WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+
+  void reportCheckpoint() {
+  Serial.println("completed checkpoint");
+  }
+
+  Serial.println("\nConnected to WiFi!");
+  Serial.print("ESP32 IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // Example: send once at startup
+  sendArrivedPost(position);
+}
+
+void loop() {
+  // Example: send periodically (replace with "when node reached" logic)
+  static uint32_t lastSend = 0;
+  if (millis() - lastSend > 5000) {
+    lastSend = millis();
+    position++;  // demo change
+    sendArrivedPost(position);
+  }
+
+  // Example node condition: 4 or 5 sensors see the line (intersection/node)
+  bool atNode = (activeCount >= 4);
+
+  if (atNode && nodeArmed && (millis() - lastNodeTime > nodeCooldownMs)) {
+  reportCheckpoint();
+  nodeArmed = false;          // disarm so it prints only once
+  lastNodeTime = millis();
+  }
+
+  if (!atNode) {
+  nodeArmed = true;           // re-arm after leaving the node
+  }
+
+}
