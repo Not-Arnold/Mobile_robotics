@@ -140,6 +140,11 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(9600);
 
+  // Buzzer startup
+  pinMode(BUZZER_PIN, OUTPUT);
+  playGear5Chorus();
+  
+  // Motor start
   pinMode(motor1PWM, OUTPUT);
   pinMode(motor1Phase, OUTPUT);
   pinMode(motor2PWM, OUTPUT);
