@@ -83,7 +83,8 @@ int calculateError() {
   bool s4 = AnalogValue[4] < threshold;
 
   if (s0 && s1 && s2 && s3 && s4) {
-    return 0; 
+    stopMotors();
+    delay(100);
   }
 
   if (s0) return -2;
