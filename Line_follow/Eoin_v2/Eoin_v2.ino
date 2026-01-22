@@ -10,6 +10,11 @@ int last_speed[2] = {0,0};
 int speed = 200;
 float ratio = 0.93;
 
+int max_Dark = 2200;
+
+int floorVal[3] = {0,0,0};   // L,C,R floor readings
+int lineVal[3]  = {2700,2700,2700}; // L,C,R line readings (max)
+
 /*#define BUZZER_PIN 4 // use a safe GPIO
 
 //NOTES FOR BUZZER
@@ -98,15 +103,18 @@ void setup() {
   pinMode(motor2PWM, OUTPUT);
   pinMode(motor2Phase, OUTPUT);
   //playGear5Chorus();
-  forward(speed);
+  floorVal[0] = analogRead(AnalogPin[1]);
+  floorVal[1] = analogRead(AnalogPin[2]);
+  floorVal[2] = analogRead(AnalogPin[3]);
+  driveForwardLR(speed, speed);
   }
 
-void forward(int speed){
+void driveForwardLR(int L_speed, int R_speed){
   digitalWrite(motor1Phase, HIGH); 
-  analogWrite(motor1PWM, speed*ratio); 
+  analogWrite(motor1PWM, L_speed*ratio); 
   Serial.println("Forward"); 
   digitalWrite(motor2Phase, LOW); 
-  analogWrite(motor2PWM, speed); 
+  analogWrite(motor2PWM, R_speed); 
   Serial.println("Forward"); 
 }
 
@@ -129,30 +137,98 @@ void line_detection(){
         Serial.println("");  
 }}}
 
+float norm(int raw, int floorR){
+  float v = (raw - floorR) / floorVal[0];  // 2000 is scale; adjust if needed
+  if (v < 0) v = 0;
+  if (v > 1) v = 1;
+  return v;
+}
+
 int left_speed(){
   float error = AnalogValue[2]/230;
   int left = 0;
 
   if (error <= 1){
-    left = speed - speed*(9*(2700 - AnalogValue[0]) + (2700 - AnalogValue[1]))/(10*2700);
+    left = speed - speed*(9*(max_Dark - AnalogValue[0]) + (max_Dark - AnalogValue[1]))/(10*max_Dark);
   }
 
   else {
-    left = speed - speed*(7*(2700 - AnalogValue[0]) + 3*(2700 - AnalogValue[1]))/(10*2700);}
+    left = speed - speed*(7*(max_Dark - AnalogValue[0]) + 3*(max_Dark - AnalogValue[1]))/(10*max_Dark);}
 
   return left;
 }
+
+int left_speed_3(){
+  float lineL = (AnalogValue[1]);
+  float lineC = (AnalogValue[2]);
+  float lineR = (AnalogValue[3]);
+
+  float L = lineL / max_Dark;
+  float C = lineC / max_Dark;
+  float R = lineR / max_Dark;
+
+  float sum = L + C + R;
+  if (sum < 0.001) sum = 0.001;
+
+  float err = (-1.8 * L + 0.0 * C + 1.8 * R) / sum;
+
+  float e = err;
+  float boost = (fabs(e) > 0.35) ? 1.8 : 1.0;
+  float correction = 120.0 * e * boost;
+
+  int left = (int)(speed - correction);
+
+  if (left < 20) left = 20;
+  if (left > 255) left = 255;
+
+  return left;
+}
+
+int right_speed_3(){
+  // Convert readings into "how much line is under sensor"
+  // If your line is DARK and gives HIGH values, keep as-is.
+  // If line gives LOW values, flip like: lineL = max_Dark - AnalogValue[1]; etc.
+  float lineL = (AnalogValue[1]);   // left
+  float lineC = (AnalogValue[2]);   // center
+  float lineR = (AnalogValue[3]);   // right
+
+  // Normalise 0..1
+  float L = lineL / max_Dark;
+  float C = lineC / max_Dark;
+  float R = lineR / max_Dark;
+
+  // Position error using 3 sensors:
+  // negative -> line is left, positive -> line is right
+  float sum = L + C + R;
+  if (sum < 0.001) sum = 0.001;
+
+  float err = (-1.8 * L + 0.0 * C + 1.8 * R) / sum;  // stronger outer weight
+
+  // Non-linear boost for sharp turns
+  float e = err;
+  float boost = (fabs(e) > 0.35) ? 1.8 : 1.0;        // turn harder when error is big
+  float correction = 120.0 * e * boost;              // 120 sets strength
+
+  int right = (int)(speed + correction);
+
+  // clamp
+  if (right < 20) right = 20;
+  if (right > 255) right = 255;
+
+  return right;
+}
+
 //ismael was here
 int right_speed(){
   float error = AnalogValue[2]/230;
   int right = 0;
 
   if (error <= 1){
-    right = speed - speed*(9*(2700 - AnalogValue[4]) + (2700 - AnalogValue[3]))/(10*2700);
+    right = speed - speed*(9*(max_Dark - AnalogValue[4]) + (max_Dark - AnalogValue[3]))/(10*max_Dark);
   }
 
   else {
-    right = speed - speed*(7*(2700 - AnalogValue[4]) + 3*(2700 - AnalogValue[3]))/(10*2700);}
+    right = speed - speed*(7*(max_Dark - AnalogValue[4]) + 3*(max_Dark - AnalogValue[3]))/(10*max_Dark);}
 
   return right;
 }
@@ -161,45 +237,35 @@ void loop(){
   line_detection();
   
 
-  if (AnalogValue[4] < 500 and AnalogValue[0] < 500){
-    forward(speed);
-    //nodeReached();
-  }
+  float L = norm(AnalogValue[1], floorVal[0]);
+float C = norm(AnalogValue[2], floorVal[1]);
+float R = norm(AnalogValue[3], floorVal[2]);
 
-  else if (AnalogValue[4] > 2000 and AnalogValue[3] > 2000 and AnalogValue[2] > 2000 and AnalogValue[1] > 2000 and AnalogValue[0] > 2000){
-    int L = last_speed[0];
-    int R = last_speed[1];
+float sum = L + C + R;
+if (sum < 0.001) sum = 0.001;
 
-    if (L > R){
-    digitalWrite(motor2Phase, LOW);
-    analogWrite(motor2PWM, 255);
+// error: -1..+1 (ish)
+float error = (R - L) / sum;
 
-    digitalWrite(motor1Phase, HIGH);
-    analogWrite(motor1PWM, 50);}
+// deadband for straight
+if (fabs(error) < 0.08) error = 0;
 
-    else {
-    digitalWrite(motor2Phase, LOW);
-    analogWrite(motor2PWM, 50);
+// adaptive gain: small near center, big when off-center
+float gain = 80;                 // normal
+if (fabs(error) > 0.35) gain = 160;   // sharper turns
+if (fabs(error) > 0.60) gain = 220;   // very sharp
 
-    digitalWrite(motor1Phase, HIGH);
-    analogWrite(motor1PWM, 255);}
+int correction = (int)(gain * error);
 
-    }
-  
-  
-  else{
-    int L = left_speed();
-    int R = right_speed();
+int leftPWM  = speed - correction;
+int rightPWM = speed + correction;
 
-    digitalWrite(motor2Phase, LOW);
-    analogWrite(motor2PWM, L);
+// clamp (avoid stalling)
+leftPWM  = constrain(leftPWM,  40, 255);
+rightPWM = constrain(rightPWM, 40, 255);
 
-    digitalWrite(motor1Phase, HIGH);
-    analogWrite(motor1PWM, R);
+// drive (match your motor mapping)
+driveForwardLR(leftPWM, rightPWM);
 
-    last_speed[0] = L;
-    last_speed[1] = R;}
-
-    delay(50);
 
 }
