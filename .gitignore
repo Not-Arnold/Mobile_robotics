@@ -1,2 +1,7 @@
 CP210x_Universal_Windows_Driver/
-.gitignore
+Forward_backward/
+Line_detection/
+Line_follow/
+recovered/
+testing/
+.gitignore.swp
