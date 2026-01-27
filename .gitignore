@@ -4,4 +4,5 @@ Line_detection/
 Line_follow/
 recovered/
 testing/
+Path_finding/
 .gitignore.swp

@@ -3,8 +3,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+//#include <Adafruit_GFX.h>
+//#include <Adafruit_SSD1306.h>
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -12,7 +12,7 @@
 #define SDA_PIN 11
 #define SCL_PIN 21
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+//Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // Motor control pins
 const int motor1PWM = 37;
@@ -44,13 +44,31 @@ const int maxSpeed = 255;
 
 // Wifi code
 const char* ssid     = "iot";
-const char* password = "inflamedness65barra";
+//const char* password = "inflamedness65barra"; // number 1
+const char* password = "repacks43telangiectases"; // number 2
 
 static int currentPosition = 0;   // ALWAYS start at 0
 static bool finished = false;
 
 const char* TEAM_ID = "asun2881";
 const char* SERVER_BASE = "http://3.250.38.184:8000";
+
+const int maxDestinations = 19;
+int destinations[maxDestinations] = {0};
+int destCount = 1;
+
+const int N = 8;              // total vertices (0..N-1). Add junction nodes if needed.
+const int MAX_DEG = 4;        // max neighbors per node (set >= your max degree)
+const int INF = 1000000000;
+
+int deg[N];                   // number of neighbors for each node
+int nbr[N][MAX_DEG];          // neighbor IDs
+int wgt[N][MAX_DEG];          // edge weights to corresponding neighbor
+
+int route[32];          // will hold nodes e.g. 0 -> 6 -> 2 -> 1
+int routeLen = 0;       // how many entries valid in route[]
+int routeIdx = 0;       // current waypoint index inside route[]
+int goalNode = -1;
 
 void setup() {
   Serial.begin(115200);
@@ -64,30 +82,43 @@ void setup() {
   for (int i = 0; i < 5; i++) {
     pinMode(AnalogPin[i], INPUT);}
 
+  stopMotors();
+
   // Wifi connection
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Not connected");
     delay(100);}
+  
+  Serial.println("connected");
 
   // One immediate test post at startup
-  String response = notifyArrival(0);
+  String response = notifyArrival(5);
   if (response.length() > 0) {
     int nextDestination = response.toInt();}
 
-  // OLED Display set up
+
+  /*// OLED Display set up
   Wire.begin(SDA_PIN, SCL_PIN);
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println("OLED NOT detected");
-    while (true);}
+    while (true);}*/
 }
 
+bool print = false;
+
 void loop() {
+  while (!finished){
+    runClientLoop();}
+  if (!print){
+    //printDestinations();
+    computeRoutesForDestinationPairs();
+    print = true;}
   lineFollow();
-  runClientLoop();
 }
 
 // Oled printing
-void printOLED(const char* label, int value, uint8_t textSize) {
+/*void printOLED(const char* label, int value, uint8_t textSize) {
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "%s %d", label, value);
 
@@ -96,7 +127,7 @@ void printOLED(const char* label, int value, uint8_t textSize) {
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
   display.println(buffer);
-  display.display();}
+  display.display();}*/
 
 // Wifi Code
 
@@ -122,19 +153,12 @@ String notifyArrival(int position) {
     destination = http.getString();
     destination.trim();
   }
-
   http.end();
   return destination;}
 
 // Calls the client
 void runClientLoop() {
-  static unsigned long lastSendMs = 0;
-  const unsigned long SEND_INTERVAL_MS = 2000;
-
   if (finished) return;
-
-  if (millis() - lastSendMs < SEND_INTERVAL_MS) return;
-  lastSendMs = millis();
 
   // Notify server of arrival at CURRENT position
   String response = notifyArrival(currentPosition);
@@ -150,13 +174,121 @@ void runClientLoop() {
 
   //??????????????????
   int nextNode = response.toInt();
-  currentPosition = nextNode;}
-
+  currentPosition = nextNode;
+  destinations[destCount++] = nextNode;}
 
 // Line follow code
 
+// Path finding code 
+void addEdge(int a, int b, int w) {
+  nbr[a][deg[a]] = b;
+  wgt[a][deg[a]] = w;
+  deg[a]++;
+
+  nbr[b][deg[b]] = a;
+  wgt[b][deg[b]] = w;
+  deg[b]++;}
+
+void dijkstra(int start, int dist[], int prev[]) {
+  bool used[N];
+
+  // init
+  for (int i = 0; i < N; i++) {
+    dist[i] = INF;
+    prev[i] = -1;
+    used[i] = false;
+  }
+  dist[start] = 0;
+
+  // main loop: pick closest unused node each time
+  for (int iter = 0; iter < N; iter++) {
+    int u = -1;
+    int best = INF;
+
+    // find unused node with smallest dist
+    for (int i = 0; i < N; i++) {
+      if (!used[i] && dist[i] < best) {
+        best = dist[i];
+        u = i;
+      }
+    }
+
+    if (u == -1) break; // remaining nodes unreachable
+    used[u] = true;
+
+    // relax edges out of u
+    for (int k = 0; k < deg[u]; k++) {
+      int v = nbr[u][k];
+      int w = wgt[u][k];
+      if (w < 0) continue; // (Dijkstra requires non-negative weights)
+
+      long alt = (long)dist[u] + (long)w;
+      if (alt < dist[v]) {
+        dist[v] = (int)alt;
+        prev[v] = u;
+      }
+    }
+  }}
+// Reconstruct path start->target using prev[]
+// Returns path length, writes nodes into pathOut[0..len-1]
+int buildPath(int target, const int prev[], int pathOut[], int maxLen) {
+  int len = 0;
+  int cur = target;
+
+  while (cur != -1 && len < maxLen) {
+    pathOut[len++] = cur;
+    cur = prev[cur];
+  }
+
+  // reverse
+  for (int i = 0; i < len / 2; i++) {
+    int tmp = pathOut[i];
+    pathOut[i] = pathOut[len - 1 - i];
+    pathOut[len - 1 - i] = tmp;
+  }
+  return len;}
+
+
+
+bool computeRouteTo(int start, int goal) {
+  if (goal < 0 || goal >= N) return false;
+
+  int dist[N], prev[N];
+  dijkstra(start, dist, prev);
+
+  if (dist[goal] >= INF/2) {
+    // unreachable
+    routeLen = 0;
+    routeIdx = 0;
+    return false;
+  }
+
+  routeLen = buildPath(goal, prev, route, (int)(sizeof(route)/sizeof(route[0])));
+  routeIdx = 0;
+  goalNode = goal;
+
+  // Debug print
+  Serial.print("New route to "); Serial.print(goal);
+  Serial.print(" (len="); Serial.print(routeLen); Serial.println("):");
+  for (int i = 0; i < routeLen; i++) {
+    Serial.print(route[i]);
+    if (i < routeLen - 1) Serial.print(" -> ");
+  }
+  Serial.println();
+
+  return true;}
+
+
+
+void computeRoutesForDestinationPairs() {
+  for (int i = 0; i < destCount - 1; i++) {
+    int start = destinations[i];
+    int goal  = destinations[i+1];
+    computeRouteTo(start, goal);   // prints the route
+  }}
+
 // Line caller
-void Line_Follow(){
+void lineFollow(){
   int error = calculateError();
   if (error == 100) {
     // Drives in the last direction if no line detected.
@@ -295,7 +427,7 @@ void dancing(){
   delay(1000);
   turning();
   delay(500);
-  twerking(10);
+  nodding(10);
   delay(100);
   wiggle(15);
   delay(100);}
@@ -309,7 +441,7 @@ void driveMotors_back(int left, int right) {
   analogWrite(motor2PWM, right);}
 
 
-void twerking(int times) {
+void nodding(int times) {
   for (int i = 0; i < times; i++) {
     driveMotors(250, 250); 
     delay(150);
