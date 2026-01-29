@@ -44,8 +44,8 @@ const int maxSpeed = 255;
 
 // Wifi code
 const char* ssid     = "iot";
-//const char* password = "inflamedness65barra"; // number 1
-const char* password = "repacks43telangiectases"; // number 2
+const char* password = "inflamedness65barra"; // number 1
+//const char* password = "repacks43telangiectases"; // number 2
 
 static int currentPosition = 0;   // ALWAYS start at 0
 static bool finished = false;
@@ -106,15 +106,17 @@ void setup() {
     while (true);}*/
 }
 
-bool print = false;
+bool print = true;
 
 void loop() {
   while (!finished){
     runClientLoop();}
-  if (!print){
-    //printDestinations();
-    computeRoutesForDestinationPairs();
-    print = true;}
+  // Compute only when we have no active route
+if (!haveRoute && destIdx < destCount) {
+  haveRoute = computeRouteTo(currNode, destinations[destIdx]);
+  routeIdx = 0;
+}
+
   lineFollow();
 }
 
@@ -181,7 +183,7 @@ void runClientLoop() {
 // Line follow code
 
 // Path finding code
-/ ------------------------------
+// ------------------------------
 // Example setup using a sample graph
 // (Replace with your real node connections + weights)
 // ------------------------------
@@ -337,9 +339,22 @@ int getNextNode() {
 }
 
 
-void nodeEvent(){
+/*void nodeEvent(){
   static unsigned long lastHit = 0;
-  if (millis() - lastHit < 400) return;
+  if (millis() - lastHit < 500) return;
+
+  lastHit = millis();
+  // after you update routeIdx++ (or before, whichever you prefer)
+  if (routeIdx + 2 >= routeLen) {
+    // We have reached the final node of this route
+    currNode = route[routeLen - 1];   // important: update your true position
+    haveRoute = false;               // route is finished
+    routeIdx = 0;
+    routeLen = 0;
+
+    destIdx++;                       // NOW move to the next destination
+    return;
+  }
 
   if (routeLen > 0 && routeIdx == routeLen - 1){
     int prev = getPrevNode();
@@ -352,7 +367,45 @@ void nodeEvent(){
     else if (doTurn == "LEFT") {turningL(); return;}
     else {turningR(); return;}
     }
+}*/
+
+void nodeEvent() {
+  static unsigned long lastHit = 0;
+  if (millis() - lastHit < 500) return;
+  lastHit = millis();
+
+  if (!haveRoute || routeLen < 2) return;
+
+  // We are currently at route[routeIdx].
+  // The node marker we just detected corresponds to arriving at route[routeIdx+1].
+  if (routeIdx + 1 >= routeLen) return;
+
+  int prev = route[routeIdx];
+  int curr = route[routeIdx + 1];
+  currNode = curr; // update where we are now
+
+  // If there's no next node, route is finished
+  if (routeIdx + 2 >= routeLen) {
+    haveRoute = false;
+    routeIdx = 0;
+    routeLen = 0;
+    destIdx++;   // move to next destination ONLY now
+    return;
+  }
+
+  int next = route[routeIdx + 2];
+
+  // Decide and execute turn
+  String t = getTurn(prev, curr, next);
+  if (t == "LEFT") turningL();
+  else if (t == "RIGHT") turningR();
+  else if (t == "UTURN") { turningL(); turningL(); }
+  // STRAIGHT => do nothing
+
+  // IMPORTANT: advance along the route
+  routeIdx++;
 }
+
 
 // Turn logic
 String getTurn(int prev, int curr, int next){
