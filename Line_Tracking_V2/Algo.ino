@@ -29,44 +29,42 @@ void buildGraph() {
 
 
 
-String getTurn(int prev, int curr, int next) {
+String getTurn(int prev, int next) {
   if (next == prev) return "UTURN";
 
-  if (curr == 6) {
-    if (prev == 0 && next == 1) return "LEFT";
-    if (prev == 0 && next == 2) return "STRAIGHT";
+    if (prev == 0 && next == 1) {nextturn = 1; return "LEFT";}
+    if (prev == 0 && next == 2) {nextturn = 1; return "STRAIGHT";}
 
-    if (prev == 2 && next == 1) return "RIGHT";
-    if (prev == 2 && next == 0) return "STRAIGHT";
+    if (prev == 2 && next == 1) {nextturn = 1; return "RIGHT";}
+    if (prev == 2 && next == 0) {nextturn = 1; return "STRAIGHT";}
 
-    if (prev == 1 && next == 2) return "LEFT";
-    if (prev == 1 && next == 0) return "RIGHT";
-  }
+    if (prev == 1 && next == 2) {nextturn = 1; return "LEFT";}
+    if (prev == 1 && next == 0) {nextturn = 1; return "RIGHT";}
 
-  if (curr == 7) {
-    if (prev == 3 && next == 1) return "LEFT";
-    if (prev == 3 && next == 4) return "STRAIGHT";
 
-    if (prev == 4 && next == 1) return "RIGHT";
-    if (prev == 4 && next == 3) return "STRAIGHT";
+    if (prev == 3 && next == 1) {nextturn = 1; return "LEFT";}
+    if (prev == 3 && next == 4) {nextturn = 1; return "STRAIGHT";}
 
-    if (prev == 1 && next == 4) return "LEFT";
-    if (prev == 1 && next == 3) return "RIGHT";
-  }
+    if (prev == 4 && next == 1) {nextturn = 1; return "RIGHT";}
+    if (prev == 4 && next == 3) {nextturn = 1; return "STRAIGHT";}
 
+    if (prev == 1 && next == 4) {nextturn = 1; return "LEFT";}
+    if (prev == 1 && next == 3) {nextturn = 1; return "RIGHT";}
+
+  nextturn = 0; 
   return "STRAIGHT";
 }
 
 void turningL() {
   int turnSpeed = 200;  // A manageable speed for rotating
-  int threshold = 1000;
+  int threshold = 500;
 
   digitalWrite(motor1Phase, HIGH);
   analogWrite(motor1PWM, turnSpeed);
   digitalWrite(motor2Phase, HIGH);
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(300);
+  delay(250);
 
   while (analogRead(AnalogPin[2]) > threshold) {}
 
@@ -77,14 +75,14 @@ void turningL() {
 // Hard turn right
 void turningR() {
   int turnSpeed = 200;  // A manageable speed for rotating
-  int threshold = 1000;
+  int threshold = 500;
 
   digitalWrite(motor1Phase, LOW);
   analogWrite(motor1PWM, turnSpeed);
   digitalWrite(motor2Phase, LOW);
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(300);
+  delay(250);
 
   while (analogRead(AnalogPin[2]) > threshold) {}
 

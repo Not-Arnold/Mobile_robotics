@@ -15,7 +15,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Not connected");
     delay(100);}
-  
+
   Serial.println("connected");
 }
 
@@ -24,47 +24,45 @@ void loop() {
   int error = calculateError();
 
   if (error == 100) {
+
+    if(millis() - lasttalktoserver > 500){
       stopMotors();
       
       // Save the node we are leaving before updating
       int prevNode = currentPosition; 
 
       // Get the next node from the server
-      runClientLoop(); 
+      if (nextturn == 0) {runClientLoop(); }
+   
       int nextNode = currentPosition; 
 
-      // MANUALLY DETERMINE THE JUNCTION (6 or 7)
-      int junction = -1;
-      
-      // If traveling between bottom loop (0,2) and middle (1), use Junction 6
-      if ((prevNode == 0 || prevNode == 2 || prevNode == 1) && 
-          (nextNode == 0 || nextNode == 2 || nextNode == 1)) {
-          junction = 6;
-      } 
-      // If traveling between top loop (3,4) and middle (1), use Junction 7
-      else if ((prevNode == 3 || prevNode == 4 || prevNode == 1) && 
-              (nextNode == 3 || nextNode == 4 || nextNode == 1)) {
-          junction = 7;
-      }
+      String direction = getTurn(prevNode, nextNode);
 
-      // Now call getTurn with the 'injected' junction node
-      String direction = "STRAIGHT";
-      if (junction != -1) {
-          direction = getTurn(prevNode, junction, nextNode);
-      }
+      if (nextturn == 1){
+        if (direction == "LEFT") {
+            turningL();
+            nextturn = 0;}
 
-      // EXECUTE ACTION
-      if (direction == "LEFT") {
-          turningL();
-      } else if (direction == "RIGHT") {
-          turningR();
-      } else {
+        else if (direction == "RIGHT") {
+            turningR();
+            nextturn = 0;}}
+
+        else if (direction == "STRAIGHT") {
+          driveMotors(baseSpeed, baseSpeed);
+          delay(300);
+          nextturn = 0;}
+
+       else {
           // DRIVE STRAIGHT: Move forward slightly to clear the line
           driveMotors(baseSpeed, baseSpeed);
-          delay(400); 
+          delay(300);
       }
-  }
+      
+      lasttalktoserver = millis();
+  }}
   
+  else if(error == 99){}
+
   else {
     calculatePID(error);
   }

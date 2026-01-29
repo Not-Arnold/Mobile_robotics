@@ -1,7 +1,7 @@
 #include "config.h"
 
 int calculateError() {
-  int threshold = 1000;
+  int threshold = 500;
   
   for (int i = 0; i < 5; i++) {
     AnalogValue[i] = analogRead(AnalogPin[i]);
@@ -58,21 +58,20 @@ void driveMotors(int left, int right) {
 
 void turning(){
 int turnSpeed = 200; // A manageable speed for rotating
-  int threshold = 1000;
+  int threshold = 500;
 
   digitalWrite(motor1Phase, HIGH); 
   analogWrite(motor1PWM, turnSpeed);
   digitalWrite(motor2Phase, HIGH); 
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(300); 
+  delay(500); 
 
 
   while (analogRead(AnalogPin[2]) > threshold) {
   }
 
   stopMotors();
-  delay(200);
 }
 
 void stopMotors() {
