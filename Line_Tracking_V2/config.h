@@ -21,7 +21,7 @@ float Kd = 80;
 
 int lastError = 0;
 float integral = 0;
-int baseSpeed = 255; 
+int baseSpeed = 200; 
 int maxSpeed = 255;
 
 unsigned long lastPrintTime = 0;
@@ -48,6 +48,10 @@ const int N = 8;        // total vertices (0..N-1). Add junction nodes if needed
 const int MAX_DEG = 4;  // max neighbors per node (set >= your max degree)
 const int INF = 1000000000;
 int nextturn = 0;
+
+int prevNode;
+int nextNode;
+String direction;
 
 int deg[N];           // number of neighbors for each node
 int nbr[N][MAX_DEG];  // neighbor IDs

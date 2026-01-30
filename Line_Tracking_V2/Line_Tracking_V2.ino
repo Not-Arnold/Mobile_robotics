@@ -128,3 +128,46 @@ void wiggle(int times){
   stopMotors();
   delay(100);
 }
+
+
+void debugSensors(int error) {
+  static unsigned long lastDebugPrint = 0;
+  if (millis() - lastDebugPrint < 500) return;
+  lastDebugPrint = millis();
+
+  Serial.println("\n--- ROBOT DEBUG STATUS ---");
+  
+  // 1. Navigation & State
+  Serial.print("STATE (nextturn): ");
+  Serial.print(nextturn); 
+  if (nextturn == 0) Serial.println(" (SEARCHING: Looking for Node)");
+  else if (nextturn == 1) Serial.println(" (DECIDED: Ready to Turn)");
+  else Serial.println(" (EXECUTING: Turning/Moving)");
+
+  // 2. Path Logic
+  Serial.print("PATH: [Node ");
+  Serial.print(prevNode);
+  Serial.print("] --> [Node ");
+  Serial.print(nextNode);
+  Serial.print("] | ACTION: ");
+  Serial.println(direction); 
+
+  // 3. Sensor Visualizer [cite: 30-34]
+  int threshold = 500; 
+  Serial.print("SENSORS: ");
+  for (int i = 0; i < 5; i++) {
+    Serial.print("[");
+    Serial.print(AnalogValue[i] < threshold ? "X" : "_"); 
+    Serial.print("] ");
+  }
+  Serial.print(" | Error: ");
+  Serial.println(error);
+
+  // 4. Power Output [cite: 37-39]
+  Serial.print("SPEEDS: L=");
+  Serial.print(currentLeftSpeed);
+  Serial.print(" | R=");
+  Serial.println(currentRightSpeed);
+  Serial.println("--------------------------");
+}
+

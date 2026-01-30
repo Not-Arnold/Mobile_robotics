@@ -55,6 +55,40 @@ String getTurn(int prev, int next) {
   return "STRAIGHT";
 }
 
+
+void nagvigating(){
+  if(millis() - lasttalktoserver > 300){
+
+      if (nextturn == 0){
+        prevNode = currentPosition; 
+        runClientLoop();
+        nextNode = currentPosition;
+        direction = getTurn(prevNode, nextNode);}
+
+      else {nextturn++;}
+
+      if (nextturn == 2){
+        if (direction == "LEFT") {
+            turningL();
+            nextturn = 0;}
+
+        else if (direction == "RIGHT"){
+            turningR();
+            nextturn = 0;}
+
+        else if (direction == "STRAIGHT") {
+          driveMotors(200, 200);
+          delay(300);
+          nextturn = 0;}}
+        
+      else{
+      driveMotors(200, 200);
+      delay(300);}
+      
+      lasttalktoserver = millis();
+}}
+
+
 void turningL() {
   int turnSpeed = 200;  // A manageable speed for rotating
   int threshold = 500;
@@ -89,3 +123,5 @@ void turningR() {
   stopMotors();
   delay(200);
 }
+
+
