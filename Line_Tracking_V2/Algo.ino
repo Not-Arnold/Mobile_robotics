@@ -30,7 +30,7 @@ void buildGraph() {
 
 
 String getTurn(int prev, int next) {
-  if (next == prev) return "UTURN";
+  if (next == destinations[destCount - 2]) return "UTURN";
 
     if (prev == 0 && next == 1) {nextturn = 1; return "LEFT";}
     if (prev == 0 && next == 2) {nextturn = 1; return "STRAIGHT";}
@@ -75,12 +75,21 @@ void nagvigating(){
         else if (direction == "RIGHT"){
             turningR();
             nextturn = 0;}
-
+        
+        /*
+        else if (direction == "UTURN"){
+            turning();
+            nextturn = 0;}
+        */
         else if (direction == "STRAIGHT") {
           driveMotors(200, 200);
           delay(300);
           nextturn = 0;}}
-        
+      
+      else if (direction == "UTURN"){
+            turning();
+            direction = getTurn(destinations[destCount - 1], nextNode);}
+            
       else{
       driveMotors(200, 200);
       delay(300);}

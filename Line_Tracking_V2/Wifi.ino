@@ -41,5 +41,6 @@ void runClientLoop() {
 
   int nextNode = response.toInt();
   currentPosition = nextNode;
-  destinations[destCount++] = nextNode;
+  destCount++;
+  destinations[destCount] = nextNode;
 }

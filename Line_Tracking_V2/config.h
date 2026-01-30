@@ -29,7 +29,7 @@ unsigned long lasttalktoserver = 0;
 
 //wifi
 const int maxDestinations = 100;
-int destinations[maxDestinations] = { 0 };
+int destinations[maxDestinations] = {4, 0};
 int destCount = 1;
 
 const char* ssid = "iot";
