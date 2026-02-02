@@ -29,27 +29,61 @@ void buildGraph() {
 
 
 
-String getTurn(int prev, int next) {
-  if (next == destinations[destCount - 2]) return "UTURN";
+void getTurn(int pre, int cur, int next) {
+  if (next == destinations[destCount - 2]) uturn = true;
 
-    if (prev == 0 && next == 1) {nextturn = 1; return "LEFT";}
-    if (prev == 0 && next == 2) {nextturn = 1; return "STRAIGHT";}
+    if (pre == 4 && cur == 0 && next == 1) {nextturn = 1; direction = "LEFT"; return;}
+    if (pre == 4 && cur == 0 && next == 2) {nextturn = 1; direction = "STRAIGHT"; return;}
 
-    if (prev == 2 && next == 1) {nextturn = 1; return "RIGHT";}
-    if (prev == 2 && next == 0) {nextturn = 1; return "STRAIGHT";}
+    if (pre == 3 && cur == 2 && next == 1) {nextturn = 1; direction = "RIGHT"; return;}
+    if (pre == 3 && cur == 2 && next == 0) {nextturn = 1; direction = "STRAIGHT"; return;}
 
-    if (prev == 1 && next == 2) {nextturn = 1; return "LEFT";}
-    if (prev == 1 && next == 0) {nextturn = 1; return "RIGHT";}
+    if ((pre == 3 || pre == 4) && cur == 1 && next == 2) {nextturn = 1; direction = "LEFT"; return;}
+    if ((pre == 3 || pre == 4) && cur == 1 && next == 0) {nextturn = 1; direction = "RIGHT"; return;}
 
 
-    if (prev == 3 && next == 1) {nextturn = 1; return "LEFT";}
-    if (prev == 3 && next == 4) {nextturn = 1; return "STRAIGHT";}
+    if (pre == 2 && cur == 3 && next == 1) {nextturn = 1; direction = "LEFT"; return;}
+    if (pre == 2 && cur == 3 && next == 4) {nextturn = 1; direction = "STRAIGHT"; return;}
 
-    if (prev == 4 && next == 1) {nextturn = 1; return "RIGHT";}
-    if (prev == 4 && next == 3) {nextturn = 1; return "STRAIGHT";}
+    if (pre == 0 && cur == 4 && next == 1) {nextturn = 1; direction = "RIGHT"; return;}
+    if (pre == 0 && cur == 4 && next == 3) {nextturn = 1; direction = "STRAIGHT"; return;}
 
-    if (prev == 1 && next == 4) {nextturn = 1; return "LEFT";}
-    if (prev == 1 && next == 3) {nextturn = 1; return "RIGHT";}
+    if ((pre == 2 || pre == 0) && cur == 1 && next == 4) {nextturn = 1; direction = "LEFT"; return;}
+    if ((pre == 2 || pre == 0) && cur == 1 && next == 3) {nextturn = 1; direction = "RIGHT"; return;}
+
+
+   // new 24 if
+    if (pre == 0 && cur == 1 && next == 2) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 0 && cur == 1 && next == 0) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 0 && cur == 2 && next == 1) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 0 && cur == 2 && next == 0) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}
+
+    if (pre == 1 && cur == 0 && next == 1) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 1 && cur == 0 && next == 2) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}
+    if (pre == 1 && cur == 2 && next == 1) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 1 && cur == 2 && next == 0) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}    
+
+    if (pre == 2 && cur == 1 && next == 2) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 2 && cur == 1 && next == 0) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 2 && cur == 0 && next == 1) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 2 && cur == 0 && next == 2) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}    
+
+
+
+    if (pre == 4 && cur == 1 && next == 4) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 4 && cur == 1 && next == 3) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 4 && cur == 3 && next == 1) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 4 && cur == 3 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;} 
+
+    if (pre == 1 && cur == 4 && next == 1) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 1 && cur == 4 && next == 3) {nextturn = 1; uturn = true; direction = "STAIGHT"; return;}
+    if (pre == 1 && cur == 3 && next == 1) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 1 && cur == 3 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}       
+
+    if (pre == 3 && cur == 1 && next == 3) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 3 && cur == 1 && next == 4) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
+    if (pre == 3 && cur == 4 && next == 1) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
+    if (pre == 3 && cur == 4 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;} 
 
   nextturn = 0; 
   return "STRAIGHT";
@@ -60,13 +94,19 @@ void nagvigating(){
   if(millis() - lasttalktoserver > 300){
 
       if (nextturn == 0){
-        prevNode = currentPosition; 
+        curNode = currentPosition; 
         runClientLoop();
         nextNode = currentPosition;
-        direction = getTurn(prevNode, nextNode);}
+        preNode = destinations[destCount - 2];
+        getTurn(preNode, curNode, nextNode);}
 
       else {nextturn++;}
 
+      if (uturn):{
+        turning();
+        uturn = false;
+      }
+      
       if (nextturn == 2){
         if (direction == "LEFT") {
             turningL();
@@ -76,11 +116,6 @@ void nagvigating(){
             turningR();
             nextturn = 0;}
         
-        /*
-        else if (direction == "UTURN"){
-            turning();
-            nextturn = 0;}
-        */
         else if (direction == "STRAIGHT") {
           driveMotors(200, 200);
           delay(300);
@@ -88,7 +123,7 @@ void nagvigating(){
       
       else if (direction == "UTURN"){
             turning();
-            direction = getTurn(destinations[destCount - 1], nextNode);}
+      }
             
       else{
       driveMotors(200, 200);

@@ -146,7 +146,7 @@ void debugSensors(int error) {
 
   // 2. Path Logic
   Serial.print("PATH: [Node ");
-  Serial.print(prevNode);
+  Serial.print(preNode);
   Serial.print("] --> [Node ");
   Serial.print(nextNode);
   Serial.print("] | ACTION: ");

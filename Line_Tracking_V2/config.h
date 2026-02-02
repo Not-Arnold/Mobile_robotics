@@ -49,9 +49,11 @@ const int MAX_DEG = 4;  // max neighbors per node (set >= your max degree)
 const int INF = 1000000000;
 int nextturn = 0;
 
-int prevNode;
+int preNode;
 int nextNode;
+int curNode;
 String direction;
+bool uturn;
 
 int deg[N];           // number of neighbors for each node
 int nbr[N][MAX_DEG];  // neighbor IDs
