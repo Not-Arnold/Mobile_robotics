@@ -47,7 +47,6 @@ const char* SERVER_BASE = "http://3.250.38.184:8000";
 const int N = 8;        // total vertices (0..N-1). Add junction nodes if needed.
 const int MAX_DEG = 4;  // max neighbors per node (set >= your max degree)
 const int INF = 1000000000;
-int nextturn = 0;
 
 int preNode;
 int nextNode;
@@ -58,3 +57,8 @@ bool uturn;
 int deg[N];           // number of neighbors for each node
 int nbr[N][MAX_DEG];  // neighbor IDs
 int wgt[N][MAX_DEG];  // edge weights to corresponding neighbor
+int edgeHeading[N][MAX_DEG]; 
+
+int path[N];
+int pathLength = 0;
+int pathIndex = 0;

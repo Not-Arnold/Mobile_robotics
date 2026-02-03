@@ -24,23 +24,27 @@ String notifyArrival(int position) {
 }
 
 
+
 void runClientLoop() {
-  if (finished) return;
+  if (finished) return; 
 
-  // Notify server of arrival at CURRENT position
   String response = notifyArrival(currentPosition);
-
-  if (response.length() == 0) {
-    return;
-  }
+  if (response.length() == 0) return;
 
   if (response == "Finished") {
-    finished = true;
+    finished = true; 
     return;
   }
 
-  int nextNode = response.toInt();
-  currentPosition = nextNode;
-  destCount++;
-  destinations[destCount] = nextNode;
+  int targetNode = response.toInt(); 
+  
+  // Calculate path from current spot to the new goal
+  findShortestPath(currentPosition, targetNode); 
+
+  // IMPORTANT: Reset position and index for the new journey
+  pathIndex = 0; 
+  currentPosition = targetNode; 
+  
+  destCount++; 
+  destinations[destCount] = targetNode; 
 }
