@@ -56,23 +56,6 @@ void driveMotors(int left, int right) {
   analogWrite(motor2PWM, right);
 }
 
-void turning(){
-int turnSpeed = 200; // A manageable speed for rotating
-  int threshold = 500;
-
-  digitalWrite(motor1Phase, HIGH); 
-  analogWrite(motor1PWM, turnSpeed);
-  digitalWrite(motor2Phase, HIGH); 
-  analogWrite(motor2PWM, turnSpeed);
-
-  delay(500); 
-
-
-  while (analogRead(AnalogPin[2]) > threshold) {
-  }
-
-  stopMotors();
-}
 
 void stopMotors() {
   analogWrite(motor1PWM, 0);

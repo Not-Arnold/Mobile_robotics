@@ -19,7 +19,6 @@ void setup() {
   Serial.println("connected");
 }
 
-
 void loop() {
   int error = calculateError();
 

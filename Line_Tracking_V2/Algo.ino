@@ -15,8 +15,8 @@ void buildGraph() {
   // Example edges (YOU must set these for your map)
   // addEdge(u, v, weight);
 
-  addEdge(0, 6, 10);  // 6 could be right junction, etc.
-  addEdge(6, 2, 10);
+  addEdge(0, 2, 10);  // 6 could be right junction, etc.
+  addEdge(0, 2, 10);
   addEdge(2, 3, 10);
   addEdge(3, 7, 15);
   addEdge(7, 4, 15);
@@ -76,7 +76,7 @@ void getTurn(int pre, int cur, int next) {
     if (pre == 4 && cur == 3 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;} 
 
     if (pre == 1 && cur == 4 && next == 1) {nextturn = 1; uturn = true; direction = "RIGHT"; return;}
-    if (pre == 1 && cur == 4 && next == 3) {nextturn = 1; uturn = true; direction = "STAIGHT"; return;}
+    if (pre == 1 && cur == 4 && next == 3) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}
     if (pre == 1 && cur == 3 && next == 1) {nextturn = 1; uturn = true; direction = "LEFT"; return;}
     if (pre == 1 && cur == 3 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;}       
 
@@ -86,12 +86,12 @@ void getTurn(int pre, int cur, int next) {
     if (pre == 3 && cur == 4 && next == 4) {nextturn = 1; uturn = true; direction = "STRAIGHT"; return;} 
 
   nextturn = 0; 
-  return "STRAIGHT";
+  direction = "STRAIGHT";
 }
 
 
 void nagvigating(){
-  if(millis() - lasttalktoserver > 300){
+  if(millis() - lasttalktoserver > 200){
 
       if (nextturn == 0){
         curNode = currentPosition; 
@@ -102,7 +102,7 @@ void nagvigating(){
 
       else {nextturn++;}
 
-      if (uturn):{
+      if (uturn){
         turning();
         uturn = false;
       }
@@ -117,17 +117,8 @@ void nagvigating(){
             nextturn = 0;}
         
         else if (direction == "STRAIGHT") {
-          driveMotors(200, 200);
-          delay(300);
           nextturn = 0;}}
-      
-      else if (direction == "UTURN"){
-            turning();
-      }
-            
-      else{
-      driveMotors(200, 200);
-      delay(300);}
+    
       
       lasttalktoserver = millis();
 }}
@@ -144,7 +135,7 @@ void turningL() {
 
   delay(250);
 
-  while (analogRead(AnalogPin[2]) > threshold) {}
+  while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
 
   stopMotors();
   delay(200);
@@ -162,10 +153,25 @@ void turningR() {
 
   delay(250);
 
-  while (analogRead(AnalogPin[2]) > threshold) {}
+  while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
 
   stopMotors();
   delay(200);
 }
 
 
+void turning(){
+int turnSpeed = 200; // A manageable speed for rotating
+  int threshold = 500;
+
+  digitalWrite(motor1Phase, HIGH); 
+  analogWrite(motor1PWM, turnSpeed);
+  digitalWrite(motor2Phase, HIGH); 
+  analogWrite(motor2PWM, turnSpeed);
+
+  delay(700); 
+
+  while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
+
+  stopMotors();
+}
