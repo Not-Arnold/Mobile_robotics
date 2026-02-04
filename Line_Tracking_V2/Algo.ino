@@ -1,146 +1,139 @@
-void addEdge(int a, int b, int w, int headingAToB, int headingBToA) {
-  nbr[a][deg[a]] = b;
-  wgt[a][deg[a]] = w;
-  edgeHeading[a][deg[a]] = headingAToB; // Heading when going a -> b
-  deg[a]++;
 
-  nbr[b][deg[b]] = a;
-  wgt[b][deg[b]] = w;
-  edgeHeading[b][deg[b]] = headingBToA; // Heading when going b -> a
-  deg[b]++;
+struct Point {
+  float x;
+  float y;
+};
+
+// Physical Map (X, Y Coordinates)
+// This allows the robot to "see" the shape of the path
+Point nodes[N] = {
+  { 5.0, -8.7}, // ID 0 (Bottom Right)
+  { 0.0,  0.0}, // ID 1 (Center)
+  { 5.0,  8.7}, // ID 2 (Top Right)
+  {-5.0,  8.7}, // ID 3 (Top Left)
+  {-5.0, -8.7}, // ID 4 (Bottom Left)
+  { 0.0,  0.0}, // ID 5 (UNUSED)
+  {10.0,  0.0}, // ID 6 (Right)
+  {-10.0, 0.0}  // ID 7 (Left)
+};
+
+// Simplified addEdge: No need to manually type headings!
+void addEdge(int u, int v, int w) {
+  // Add U -> V
+  nbr[u][deg[u]] = v;
+  wgt[u][deg[u]] = w;
+  deg[u]++;
+
+  // Add V -> U (Bidirectional)
+  nbr[v][deg[v]] = u;
+  wgt[v][deg[v]] = w;
+  deg[v]++;
 }
+
 
 void buildGraph() {
+  // Clear old connections
   for (int i = 0; i < N; i++) deg[i] = 0;
-
-  // Example: addEdge(NodeA, NodeB, Weight, Heading A->B, Heading B->A)
-  // Curve 0 to 4
-  addEdge(0, 4, 5, 3, 1); 
   
-  // Junction 6 (Right side)
-  addEdge(0, 6, 5, 0, 2);   // 0 up to 6 is North(0)
-  addEdge(2, 6, 5, 2, 0);   // 2 down to 6 is South(2)
-  addEdge(6, 1, 5, 3, 1);  // 6 left to 1 is West(3)
-
-  // Junction 7 (Left side)
-  addEdge(4, 7, 8, 0, 2);   // 4 up to 7 is North(0)
-  addEdge(3, 7, 8, 2, 0);   // 3 down to 7 is South(2)
-  addEdge(7, 1, 5, 1, 3);  // 7 right to 1 is East(1)
-  
-  // Curve 3 to 2
-  addEdge(3, 2, 5, 1, 3); 
+  // 1. Center Line
+  addEdge(1, 6, 10);
+  addEdge(1, 7, 10);
+  addEdge(0, 6, 10);
+  addEdge(6, 2, 10);
+  addEdge(2, 3, 10);
+  addEdge(3, 7, 15);
+  addEdge(7, 4, 15);
+  addEdge(4, 0, 10);
 }
 
 
-void getTurn(int pre, int cur, int next) {
-  int h_in = -1;
-  int h_out = -1;
 
-  // 1. Find the heading we arrived with (pre -> cur)
-  for (int i = 0; i < deg[pre]; i++) {
-    if (nbr[pre][i] == cur) {
-      h_in = edgeHeading[pre][i];
-      break;
-    }
-  }
+String getTurn(int prev, int curr, int next) {
+  // 1. U-Turn Check
+  if (prev == next) return "U-TURN";
 
-  // 2. Find the heading we need to leave with (cur -> next)
-  for (int i = 0; i < deg[cur]; i++) {
-    if (nbr[cur][i] == next) {
-      h_out = edgeHeading[cur][i];
-      break;
-    }
-  }
+  // 2. Get Coordinates
+  Point p1 = nodes[prev];
+  Point p2 = nodes[curr];
+  Point p3 = nodes[next];
 
-  int diff = (h_out - h_in + 4) % 4;
+  // 3. Calculate Angles
+  float angleIn = atan2(p2.y - p1.y, p2.x - p1.x);
+  float angleOut = atan2(p3.y - p2.y, p3.x - p2.x);
+  
+  float diff = angleOut - angleIn;
+  
+  // Normalize (-PI to +PI)
+  while (diff <= -PI) diff += 2 * PI;
+  while (diff > PI) diff -= 2 * PI;
 
-  if (diff == 0) direction = "STRAIGHT";
-  else if (diff == 1) direction = "RIGHT";
-  else if (diff == 2) { direction = "STRAIGHT"; uturn = true; } // Or custom U-turn
-  else if (diff == 3) direction = "LEFT";
+  // Convert to Degrees
+  float deg = diff * 180.0 / PI;
+
+  // 4. Decide Direction
+  // Wide window (-65 to +65) handles the gentle curve of the circle
+  if (deg > -65 && deg < 65) return "STRAIGHT";
+  if (deg >= 65) return "LEFT";
+  return "RIGHT";
 }
 
 
-void nagvigating() {
-  // 1. Get nodes from our pre-calculated Dijkstra path
-  int pre = (pathIndex > 0) ? path[pathIndex - 1] : currentPosition;
+void navigating() {
+  int currentNode = path[pathIndex];
+  int pre = (pathIndex > 0) ? path[pathIndex - 1] : previousNodeID;
   int cur = path[pathIndex];
   int next = path[pathIndex + 1];
 
-  // 2. Determine the required turn based on headings
-  getTurn(pre, cur, next);
+  // --- FIX START ---
+  // 1. Capture the result!
+  String action = getTurn(pre, cur, next); 
 
-  // 3. Execute the turn
-  if (uturn) {
+  // 2. Use 'action' variable instead of global strings/bools
+  if (action == "U-TURN") {
     turning();
-    uturn = false;
-  } else if (direction == "LEFT") {
+    // No need to reset a global flag anymore
+  } else if (action == "LEFT") {
     turningL();
-  } else if (direction == "RIGHT") {
+  } else if (action == "RIGHT") {
     turningR();
-  } else if (direction == "STRAIGHT") {
+  } else if (action == "STRAIGHT") {
     driveMotors(baseSpeed, baseSpeed);
-    delay(300); // Increased to ensure the robot clears the junction line
+    delay(150);
   }
+  // --- FIX END ---
 
-  // 4. Move to the next segment of the path
-  pathIndex++; 
+  pathIndex++;
   lasttalktoserver = millis();
 }
 
 
 
 void findShortestPath(int startNode, int endNode) {
-  int dist[N];
-  int parent[N];
-  bool visited[N];
-
-  for (int i = 0; i < N; i++) {
-    dist[i] = INF;
-    parent[i] = -1;
-    visited[i] = false;
-  }
+  int dist[N]; int parent[N]; bool visited[N];
+  for (int i = 0; i < N; i++) { dist[i] = INF; parent[i] = -1; visited[i] = false; } 
 
   dist[startNode] = 0;
-
   for (int count = 0; count < N - 1; count++) {
     int u = -1;
     for (int i = 0; i < N; i++) {
-      if (!visited[i] && (u == -1 || dist[i] < dist[u])) u = i;
+      if (!visited[i] && (u == -1 || dist[i] < dist[u])) u = i; 
     }
-
-    if (u == -1 || dist[u] == INF) break;
+    if (u == -1 || dist[u] == INF) break; 
     visited[u] = true;
 
     for (int i = 0; i < deg[u]; i++) {
-      int v = nbr[u][i];
-      int weight = wgt[u][i];
-      if (dist[u] + weight < dist[v]) {
-        dist[v] = dist[u] + weight;
-        parent[v] = u;
-      }
+      int v = nbr[u][i]; int weight = wgt[u][i]; 
+      if (dist[u] + weight < dist[v]) { dist[v] = dist[u] + weight; parent[v] = u; } 
     }
   }
 
-  // Reconstruct the path
-  int tempPath[N];
-  int tempIdx = 0;
-  int curr = endNode;
-
-  if (dist[endNode] == INF) return; 
-
-  while (curr != -1) {
-    tempPath[tempIdx++] = curr;
-    curr = parent[curr];
-  }
-
-  // Fill the global path array in forward order
-  for (int i = 0; i < tempIdx; i++) {
-    path[i] = tempPath[tempIdx - 1 - i];
-  }
+  int tempPath[N]; int tempIdx = 0; int curr = endNode; 
+  if (dist[endNode] == INF) return;
+  while (curr != -1) { tempPath[tempIdx++] = curr; curr = parent[curr]; } 
+  for (int i = 0; i < tempIdx; i++) { path[i] = tempPath[tempIdx - 1 - i]; } 
   
-  pathLength = tempIdx;
-  pathIndex = 0; // CRITICAL: Reset the bookmark for the new journey
+  pathLength = tempIdx; // [cite: 39]
+  pathIndex = 0; // Reset bookmark for new journey [cite: 39]
 }
 
 
@@ -159,9 +152,6 @@ void turningL() {
   delay(250);
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
-
-  stopMotors();
-  delay(200);
 }
 
 // Hard turn right
@@ -177,14 +167,11 @@ void turningR() {
   delay(250);
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
-
-  stopMotors();
-  delay(200);
 }
 
 
 void turning(){
-int turnSpeed = 200; // A manageable speed for rotating
+  int turnSpeed = 200; // A manageable speed for rotating
   int threshold = 500;
 
   digitalWrite(motor1Phase, HIGH); 
@@ -195,7 +182,4 @@ int turnSpeed = 200; // A manageable speed for rotating
   delay(700); 
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
-
-  stopMotors();
 }
-

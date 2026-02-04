@@ -37,14 +37,6 @@ void runClientLoop() {
   }
 
   int targetNode = response.toInt(); 
-  
-  // Calculate path from current spot to the new goal
-  findShortestPath(currentPosition, targetNode); 
-
-  // IMPORTANT: Reset position and index for the new journey
   pathIndex = 0; 
   currentPosition = targetNode; 
-  
-  destCount++; 
-  destinations[destCount] = targetNode; 
 }
