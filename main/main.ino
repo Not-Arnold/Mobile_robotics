@@ -1,5 +1,6 @@
 void setup() {
   Serial.begin(115200);
+  buildGraph();
 
   pinMode(motor1PWM, OUTPUT);
   pinMode(motor1Phase, OUTPUT);
@@ -19,13 +20,29 @@ void setup() {
   Serial.println("connected");
 }
 
-
 void loop() {
+  bool obstacle = obstacleDetected();
   int error = calculateError();
-
-  if (error == 100) {
-    nagvigating();
+  if (obstacle){
+    Serial.println("obstacle");
+    //delay(1000);
+    turning();
+    /*addEdge(path[pathIndex], path[pathIndex + 1], INF);
+    findShortestPath(path[pathIndex], previousNodeID);*/
   }
+  else{Serial.println("Clear");driveMotors(HIGH, HIGH);}
+  delay(10);
+  if(finished){
+    stopMotors();
+    delay(5000);
+  }
+
+  //int error = calculateError();
+  
+if (error == 100) {
+    nodeEvent();
+  }
+
   
   else if(error == 99){
     driveMotors(currentLeftSpeed, currentRightSpeed);
@@ -34,8 +51,5 @@ void loop() {
   else {
     calculatePID(error);
   }
-
-  debugSensors(error);
-
   delay(10); 
 }

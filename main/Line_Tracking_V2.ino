@@ -48,6 +48,68 @@ void calculatePID(int error) {
   last_speed[1] = currentRightSpeed;
 }
 
+void nodeEvent(){
+  // 1. Identify where we are
+  int arrivalNode;
+  if (firstRun) {
+    arrivalNode = 0; // Or 4, wherever you physically place the robot
+  } else {
+    arrivalNode = path[pathIndex];
+    currentPosition = arrivalNode;
+  }
+
+  // 2. Check if we are at the end of the current route
+  bool isFinalDestination = (pathIndex == pathLength - 1);
+
+  if (firstRun || isFinalDestination) {
+
+    if (!firstRun) {
+      previousNodeID = path[pathIndex - 1]; 
+    } 
+    else {
+      previousNodeID = 4; // Default for first run
+    }
+
+    // Talk to Server
+    String response = notifyArrival(arrivalNode);
+    
+    if (response == "Finished" || response == "") {
+      finished = true;
+      return;
+    }
+
+    int targetNode = response.toInt();
+
+    findShortestPath(arrivalNode, targetNode);
+    
+    firstRun = false;
+
+    navigating();
+  }
+  else {
+    // Do not talk to server. Just turn and keep driving.
+    navigating();
+  }
+}
+
+bool obstacleDetected() {
+  static unsigned long lastHit = 0;
+  if (millis() - lastHit < 400) return false;
+  lastHit = millis();
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  //Serial.println("clear");
+  long duration = pulseIn(ECHO_PIN, HIGH, 500);
+  if (duration == 0) return false;
+
+  float distanceCm = duration/29/2;
+  return distanceCm <= OBSTACLE_DISTANCE_CM;
+}
+
 void driveMotors(int left, int right) {
   digitalWrite(motor1Phase, HIGH); 
   analogWrite(motor1PWM, left);
@@ -68,7 +130,7 @@ void dancing(){
   delay(1000);
   turning();
   delay(500);
-  twerking(10);
+  Nodding(10);
   delay(100);
   wiggle(15);
   delay(100);
@@ -82,13 +144,14 @@ void driveMotors_back(int left, int right) {
   analogWrite(motor2PWM, right);
 }
 
-void twerking(int times) {
+void Nodding(int times) {
   for (int i = 0; i < times; i++) {
     driveMotors(250, 250); 
     delay(150);
     driveMotors_back(250, 250);
     delay(150);
-  }}
+  }
+}
   
 
 void wiggle(int times){
