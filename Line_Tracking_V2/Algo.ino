@@ -12,12 +12,12 @@ Point nodes[N] = {
   { 5.0,  8.7}, // ID 2 (Top Right)
   {-5.0,  8.7}, // ID 3 (Top Left)
   {-5.0, -8.7}, // ID 4 (Bottom Left)
-  { 0.0,  0.0}, // ID 5 (UNUSED)
+  {-15.0, 0.0}, // ID 5 (Parking - To the left of Node 7)
   {10.0,  0.0}, // ID 6 (Right)
   {-10.0, 0.0}  // ID 7 (Left)
 };
 
-// Simplified addEdge: No need to manually type headings!
+
 void addEdge(int u, int v, int w) {
   // Add U -> V
   nbr[u][deg[u]] = v;
@@ -44,13 +44,17 @@ void buildGraph() {
   addEdge(3, 7, 15);
   addEdge(7, 4, 15);
   addEdge(4, 0, 10);
+
+  addEdge(7, 5, 1000);
 }
-
-
 
 String getTurn(int prev, int curr, int next) {
   // 1. U-Turn Check
   if (prev == next) return "U-TURN";
+
+  // 1. Special Parking Trigger
+  if (curr == 7 && next == 5) return "PARK";
+  if (prev == 7 && curr == 1 && next == 7) return "SOFT_U_TURN";
 
   // 2. Get Coordinates
   Point p1 = nodes[prev];
@@ -84,60 +88,131 @@ void navigating() {
   int cur = path[pathIndex];
   int next = path[pathIndex + 1];
 
-  // --- FIX START ---
   // 1. Capture the result!
   String action = getTurn(pre, cur, next); 
 
   // 2. Use 'action' variable instead of global strings/bools
   if (action == "U-TURN") {
     turning();
-    // No need to reset a global flag anymore
+  } else if (action == "SOFT_U_TURN") {
+    softturning();
   } else if (action == "LEFT") {
     turningL();
   } else if (action == "RIGHT") {
     turningR();
+  } else if (action == "PARK") {     
+    driveStraightToParking();
+    finished = true;
   } else if (action == "STRAIGHT") {
     driveMotors(baseSpeed, baseSpeed);
-    delay(150);
+    //delay(200);
   }
-  // --- FIX END ---
 
   pathIndex++;
-  lasttalktoserver = millis();
 }
 
 
 
 void findShortestPath(int startNode, int endNode) {
+  int actualEndNode = endNode;
+  
+  // SPECIAL CASE: If going to 5, we must ALWAYS go through 1 then 7.
+  // This ensures we are aligned straight, even if we start at 7.
+  // So, we tell the pathfinder to take us to Node 1 first.
+  if (endNode == 5) {
+      actualEndNode = 1;
+  }
+
+  // --- Standard Dijkstra Algorithm ---
   int dist[N]; int parent[N]; bool visited[N];
-  for (int i = 0; i < N; i++) { dist[i] = INF; parent[i] = -1; visited[i] = false; } 
+  for (int i = 0; i < N; i++) { dist[i] = INF; parent[i] = -1; visited[i] = false; }
 
   dist[startNode] = 0;
   for (int count = 0; count < N - 1; count++) {
     int u = -1;
     for (int i = 0; i < N; i++) {
-      if (!visited[i] && (u == -1 || dist[i] < dist[u])) u = i; 
+      if (!visited[i] && (u == -1 || dist[i] < dist[u])) u = i;
     }
     if (u == -1 || dist[u] == INF) break; 
     visited[u] = true;
-
     for (int i = 0; i < deg[u]; i++) {
-      int v = nbr[u][i]; int weight = wgt[u][i]; 
-      if (dist[u] + weight < dist[v]) { dist[v] = dist[u] + weight; parent[v] = u; } 
+      int v = nbr[u][i];
+      int weight = wgt[u][i];
+      if (dist[u] + weight < dist[v]) { dist[v] = dist[u] + weight; parent[v] = u; }
     }
   }
 
-  int tempPath[N]; int tempIdx = 0; int curr = endNode; 
-  if (dist[endNode] == INF) return;
-  while (curr != -1) { tempPath[tempIdx++] = curr; curr = parent[curr]; } 
-  for (int i = 0; i < tempIdx; i++) { path[i] = tempPath[tempIdx - 1 - i]; } 
+  // Reconstruct path from Start -> actualEndNode
+  int tempPath[N]; int tempIdx = 0; int curr = actualEndNode;
+  if (dist[actualEndNode] == INF) return;
+  while (curr != -1) { tempPath[tempIdx++] = curr; curr = parent[curr]; }
   
-  pathLength = tempIdx; // [cite: 39]
-  pathIndex = 0; // Reset bookmark for new journey [cite: 39]
+  for (int i = 0; i < tempIdx; i++) { path[i] = tempPath[tempIdx - 1 - i]; }
+  
+  pathLength = tempIdx; 
+
+  // --- APPEND THE FINAL APPROACH ---
+  // If the target was 5, we are currently at Node 1 (or at Node 7 heading to 1).
+  // Now we append the sequence 1 -> 7 -> 5 to the path.
+  if (endNode == 5) {
+      path[pathLength] = 7;
+      path[pathLength + 1] = 5;
+      pathLength += 2;
+  }
+
+  pathIndex = 0;
 }
 
 
+void nodeEvent(){
+  int arrivalNode;
 
+  if (firstRun) {
+    arrivalNode = 0; // Or 4, wherever you physically place the robot
+  } else {
+    arrivalNode = path[pathIndex];
+    currentPosition = arrivalNode;
+  }
+
+  Serial.print("Arrived at ID: ");
+  Serial.println(arrivalNode);
+
+  // 2. Check if we are at the end of the current route
+  bool isFinalDestination = (pathIndex == pathLength - 1);
+
+  if (firstRun || isFinalDestination) {
+
+    if (!firstRun) {
+          previousNodeID = path[pathIndex - 1]; 
+      } else {
+          previousNodeID = 4; // Default for first run
+      }
+
+      // Talk to Server
+      String response = notifyArrival(arrivalNode);
+      
+      if (response == "Finished" || response == "") {
+        finished = true;
+        return;
+      }
+
+      int targetNode = response.toInt();
+      Serial.print("Server says go to: ");
+      Serial.println(targetNode);
+
+      findShortestPath(arrivalNode, targetNode);
+      
+      firstRun = false;
+
+      navigating();}
+
+      else {
+        // --- WE ARE AT AN INTERMEDIATE NODE (6 or 7) ---
+        // Do not talk to server. Just turn and keep driving.
+        Serial.println("Intermediate Node - Keep Going");
+        navigating();
+    }
+}
 
 
 void turningL() {
@@ -182,4 +257,18 @@ void turning(){
   delay(700); 
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
+}
+
+void softturning(){
+  int turnSpeed = 100; // A manageable speed for rotating
+  int threshold = 500;
+
+  digitalWrite(motor1Phase, HIGH); 
+  analogWrite(motor1PWM, turnSpeed);
+  digitalWrite(motor2Phase, HIGH); 
+  analogWrite(motor2PWM, turnSpeed);
+
+  delay(1000); 
+
+  while (analogRead(AnalogPin[2]) > threshold){}
 }

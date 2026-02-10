@@ -7,14 +7,13 @@ int calculateError() {
     AnalogValue[i] = analogRead(AnalogPin[i]);
   }
 
-
   bool s0 = AnalogValue[0] < threshold;
   bool s1 = AnalogValue[1] < threshold;
   bool s2 = AnalogValue[2] < threshold;
   bool s3 = AnalogValue[3] < threshold;
   bool s4 = AnalogValue[4] < threshold;
 
-  if (s0 && s1 && s2 && s3 && s4) {
+  if ((s0 && s1 && s2 && s3 && s4) || (s1 && s2 && s3 && s4) || (s0 && s1 && s2 && s3) || (s1 && s2 && s3)){
     return 100; 
   }
 
@@ -26,6 +25,7 @@ int calculateError() {
 
   return 99; 
 }
+
 
 void calculatePID(int error) {
   float P = error;
@@ -42,11 +42,33 @@ void calculatePID(int error) {
   currentLeftSpeed = constrain(currentLeftSpeed, 0, maxSpeed);
   currentRightSpeed = constrain(currentRightSpeed, 0, maxSpeed);
 
-  driveMotors(currentLeftSpeed, currentRightSpeed);
+  driveMotors(0.9*currentLeftSpeed, currentRightSpeed);
 
-  last_speed[0] = currentLeftSpeed;
+  last_speed[0] = 0.9*currentLeftSpeed;
   last_speed[1] = currentRightSpeed;
 }
+
+
+
+bool obstacleDetected(int distance) {
+  static unsigned long lastHit = 0;
+  if (millis() - lastHit < 100) return false;
+  lastHit = millis();
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  //Serial.println("clear");
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  if (duration == 0) return false;
+
+  float distanceCm = duration / 58;
+  return distanceCm <= distance;
+}
+
 
 void driveMotors(int left, int right) {
   digitalWrite(motor1Phase, HIGH); 
@@ -89,8 +111,8 @@ void twerking(int times) {
     driveMotors(250, 250); 
     delay(150);
     driveMotors_back(250, 250);
-    delay(150);
-  }}
+    delay(150);}
+  }
   
 
 void wiggle(int times){

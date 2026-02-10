@@ -69,3 +69,8 @@ int edgeHeading[N][MAX_DEG];
 int path[N];
 int pathLength = 0;
 int pathIndex = 0;
+
+
+//obst
+int TRIG_PIN = 19;
+int ECHO_PIN = 2;
