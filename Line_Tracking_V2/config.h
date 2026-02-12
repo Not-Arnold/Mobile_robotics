@@ -7,8 +7,8 @@
 
 int motor1PWM = 37;
 int motor1Phase = 38;
-int motor2PWM = 39;
-int motor2Phase = 20;
+int motor2PWM = 35;
+int motor2Phase = 21;
 
 int AnalogPin[5] = {18, 17, 16, 15, 7};
 int AnalogValue[5] = {0, 0, 0, 0, 0};
@@ -17,9 +17,9 @@ int last_speed[2] = {0,0};
 int currentLeftSpeed = 0;   // Add these here
 int currentRightSpeed = 0;  // so loop() can see them
 
-float Kp = 100; 
+float Kp = 25; 
 float Ki = 0.0;
-float Kd = 80;
+float Kd = 15;
 
 
 int lastError = 0;

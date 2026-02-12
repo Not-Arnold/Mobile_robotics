@@ -104,8 +104,8 @@ void navigating() {
     driveStraightToParking();
     finished = true;
   } else if (action == "STRAIGHT") {
-    driveMotors(baseSpeed, baseSpeed);
-    //delay(200);
+    driveMotors(baseSpeed*0.9, baseSpeed);
+    delay(500);
   }
 
   pathIndex++;
@@ -260,7 +260,7 @@ void turning(){
 }
 
 void softturning(){
-  int turnSpeed = 100; // A manageable speed for rotating
+  int turnSpeed = 50; // A manageable speed for rotating
   int threshold = 500;
 
   digitalWrite(motor1Phase, HIGH); 
@@ -268,7 +268,7 @@ void softturning(){
   digitalWrite(motor2Phase, HIGH); 
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(1000); 
+  delay(1200); 
 
   while (analogRead(AnalogPin[2]) > threshold){}
 }

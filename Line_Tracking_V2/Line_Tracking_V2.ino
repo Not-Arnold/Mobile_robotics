@@ -17,8 +17,8 @@ int calculateError() {
     return 100; 
   }
 
-  if (s0) return -2;
-  if (s4) return 2;
+  if (s0) return -5;
+  if (s4) return 5;
   if (s1) return -1;
   if (s3) return 1;
   if (s2) return 0;
@@ -42,10 +42,11 @@ void calculatePID(int error) {
   currentLeftSpeed = constrain(currentLeftSpeed, 0, maxSpeed);
   currentRightSpeed = constrain(currentRightSpeed, 0, maxSpeed);
 
-  driveMotors(0.9*currentLeftSpeed, currentRightSpeed);
+  driveMotors(currentLeftSpeed, currentRightSpeed);
 
-  last_speed[0] = 0.9*currentLeftSpeed;
+  last_speed[0] = currentLeftSpeed;
   last_speed[1] = currentRightSpeed;
+  delay(20);
 }
 
 

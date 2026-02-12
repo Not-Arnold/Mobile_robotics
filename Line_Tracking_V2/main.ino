@@ -7,6 +7,10 @@ void setup() {
   pinMode(motor2PWM, OUTPUT);
   pinMode(motor2Phase, OUTPUT);
 
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  digitalWrite(TRIG_PIN, LOW);
+
   for (int i = 0; i < 5; i++) {
     pinMode(AnalogPin[i], INPUT);
   }
@@ -28,18 +32,15 @@ void loop() {
     while(true) delay(1000);
   }
 
-  if (error == 100 && ((millis() - lasttalktoserver) > 300)){
+  if (error == 100 && ((millis() - lasttalktoserver) > 500)){
     lasttalktoserver = millis();
     nodeEvent();
     }
-  
 
-  else if(error == 99){
-    driveMotors(currentLeftSpeed, currentRightSpeed);
-  }
+  else if(error == 99){}
 
   else {
     calculatePID(error);
   }
-  //delay(10); 
+  delay(10); 
 }

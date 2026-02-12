@@ -52,34 +52,57 @@ bool printDistanceAndCheckTarget(float targetCm, float toleranceCm = 1.0)
 
 
 void driveStraightToParking() {
-  Serial.println("Parking Mode Initiated...");
+  baseSpeed = 100; 
+  maxSpeed = 150;
   
-  int driveSpeed = 100;     // Moderate speed to start
-  int creepSpeed = 50;     // Slow speed for precision
-  float stopDist = 4.0;     // Stop at 2-4cm (sensors can be jittery <2cm)
-  float slowDist = 15.0;    // Start slowing down at 15cm
+  Serial.println("Parking Mode Initiated...");
+  bool on_line = true;
+
+  int driveSpeed = 150;     // Moderate speed to start
+  int creepSpeed = 30;     // Slow speed for precision
+  float stopDist = 5;     // Stop at 2-4cm (sensors can be jittery <2cm)
+  float slowDist = 10.0;    // Start slowing down at 15cm
 
   while (true) {
-    float dist = readDistanceCm();
-    printDistanceAndCheckTarget(5.0, 1.0);
-    
-    // Safety break if sensor is acting up (reading 0 often means error)
-    if (dist <= 0) dist = 999.0; 
+    int error = calculateError();
 
-    if (dist <= stopDist) {
-      // Wall reached
-      stopMotors();
-      Serial.println("Parked.");
-      break;
-    } 
-    else if (dist < slowDist) {
-      // Approaching wall - Slow down
-      driveMotors(creepSpeed*0.9, creepSpeed);
-    } 
-    else {
-      // Driving to wall
-      driveMotors(driveSpeed*0.9, driveSpeed);
-    }
-    //delay(10); // Small stability delay
-  }
+    if ((error != 99) && (error != 100) && on_line){
+    calculatePID(error);}
+
+    else if ((error == 100) && on_line){
+      calculatePID(0);}
+
+    if ((error == 99) || (on_line == false)){
+        on_line = false;
+        float dist = readDistanceCm();
+        printDistanceAndCheckTarget(5.0, 1.0);
+        
+        // Safety break if sensor is acting up (reading 0 often means error)
+        if (dist <= 0) dist = 999.0; 
+
+        
+        if (dist <= stopDist) {
+          delay(1000);
+          notifyArrival(5);
+          finished = true;
+          Serial.println("Parked.");
+
+          stopMotors();
+          while(true) {
+          stopMotors();}
+          break;
+        }
+
+        else if (dist < slowDist) {
+          // Approaching wall - Slow down
+          driveMotors(creepSpeed*0.9, creepSpeed);
+        } 
+
+
+        else {
+          // Driving to wall
+          driveMotors(driveSpeed*0.9, driveSpeed);
+        }}
+        delay(20); // Small stability delay
+      }
 }
