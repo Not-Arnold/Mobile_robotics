@@ -23,34 +23,50 @@ void setup() {
 
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Not connected");
-    delay(100);}
+    delay(100);
+  }
 
   Serial.println("connected");
+  resetServerMap();
+  // Start the background task on Core 0
+  setupMultiCore();
 }
 
 void loop() {
+  if(finished){
+    stateStr = "FINISHED";
+    stopMotors();
+    while(true) delay(1000);
+    return;
+  }
+
+  if (millis() - lastTelemetryTime > 1000) { // Increase to 500ms to give the CPU more breathing room
+    lastTelemetryTime = millis();
+    //sendTelemetry();
+  }
+
   int error = calculateError();
 
   if (!finished && obstacleDetected(15)) { // 15cm threshold
-    printDistanceAndCheckTarget(10,1);
+    obstacleStartNode = currentPosition;
+    obstacleEndNode = nextNode;
+    stateStr = "OBSTACLE DETECTED";
+
     performReroute();
+
     // After reroute, we return to top of loop to start PID line following immediately
     return; 
-    }
-    
-  if(finished){
-    stopMotors();
-    while(true) delay(1000);
   }
 
   if (error == 100 && ((millis() - lasttalktoserver) > 500)){
     lasttalktoserver = millis();
+    stateStr = "AT NODE";
     nodeEvent();
-    }
-
-  else if(error == 99){}
-
-  else {
+    //sendTelemetry();
+  } else if(error == 99){
+    stateStr = "LOST LINE";
+  } else {
+    stateStr = "LINE FOLLOWING";
     calculatePID(error);
   }
   delay(20); 

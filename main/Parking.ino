@@ -1,8 +1,7 @@
 // --- NEW PARKING FUNCTIONS ---
 
 // Helper to get accurate distance
-float readDistanceCm()
-{
+float readDistanceCm(){
   // Trigger pulse
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -20,9 +19,7 @@ float readDistanceCm()
   return duration / 58.0;
 }
 
-
-bool printDistanceAndCheckTarget(float targetCm, float toleranceCm = 1.0)
-{
+bool printDistanceAndCheckTarget(float targetCm, float toleranceCm = 1.0){
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint < 100) return false; // print at most every 100ms
   lastPrint = millis();
@@ -50,7 +47,6 @@ bool printDistanceAndCheckTarget(float targetCm, float toleranceCm = 1.0)
   return false;
 }
 
-
 void driveStraightToParking() {
   baseSpeed = 100; 
   maxSpeed = 150;
@@ -66,42 +62,34 @@ void driveStraightToParking() {
   while (true) {
     int error = calculateError();
 
-    if ((error != 99) && (error != 100) && on_line){
-    calculatePID(error);}
+    if ((error != 99) && (error != 100) && on_line){calculatePID(error);}
 
-    else if ((error == 100) && on_line){
-      calculatePID(0);}
+    else if ((error == 100) && on_line){calculatePID(0);}
 
     if ((error == 99) || (on_line == false)){
-        on_line = false;
-        float dist = readDistanceCm();
-        printDistanceAndCheckTarget(5.0, 1.0);
-        
-        // Safety break if sensor is acting up (reading 0 often means error)
-        if (dist <= 0) dist = 999.0; 
+      on_line = false;
+      float dist = readDistanceCm();
+      printDistanceAndCheckTarget(5.0, 1.0);
+      
+      // Safety break if sensor is acting up (reading 0 often means error)
+      if (dist <= 0) dist = 999.0; 
 
-        
-        if (dist <= stopDist) {
-          notifyArrival(5);
-          finished = true;
-          Serial.println("Parked.");
+      if (dist <= stopDist) {
+        notifyArrival(5);
+        finished = true;
+        Serial.println("Parked.");
 
-          stopMotors();
-          while(true) {
-          stopMotors();}
-          break;
-        }
-
-        else if (dist < slowDist) {
-          // Approaching wall - Slow down
-          driveMotors(creepSpeed*0.9, creepSpeed);
-        } 
-
-
-        else {
-          // Driving to wall
-          driveMotors(driveSpeed*0.9, driveSpeed);
-        }}
-        delay(20); // Small stability delay
+        stopMotors();
+        while(true) {stopMotors();}
+        break;
+      } else if (dist < slowDist) {
+        // Approaching wall - Slow down
+        driveMotors(creepSpeed*0.9, creepSpeed);
+      } else {
+        // Driving to wall
+        driveMotors(driveSpeed*0.9, driveSpeed);
       }
+    }
+    delay(20); // Small stability delay
+  }
 }

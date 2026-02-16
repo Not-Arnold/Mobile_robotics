@@ -1,4 +1,3 @@
-
 struct Point {
   float x;
   float y;
@@ -17,7 +16,6 @@ Point nodes[N] = {
   {-10.0, 0.0}  // ID 7 (Left)
 };
 
-
 void addEdge(int u, int v, int w) {
   // Add U -> V
   nbr[u][deg[u]] = v;
@@ -30,23 +28,23 @@ void addEdge(int u, int v, int w) {
   deg[v]++;
 }
 
-
 void blockEdge(int u, int v) {
   // Block U -> V
   for (int i = 0; i < deg[u]; i++) {
     if (nbr[u][i] == v) {
       wgt[u][i] = INF; // Set weight to infinity
       break;
-    }}
+    }
+  }
   
   // Block V -> U (Bidirectional)
   for (int i = 0; i < deg[v]; i++) {
     if (nbr[v][i] == u) {
       wgt[v][i] = INF;
       break;
-    }}}
-
-
+    }
+  }
+}
 
 void buildGraph() {
   // Clear old connections
@@ -98,7 +96,6 @@ String getTurn(int prev, int curr, int next) {
   return "RIGHT";
 }
 
-
 void navigating() {
   int currentNode = path[pathIndex];
   int pre = (pathIndex > 0) ? path[pathIndex - 1] : previousNodeID;
@@ -127,8 +124,6 @@ void navigating() {
 
   pathIndex++;
 }
-
-
 
 void findShortestPath(int startNode, int endNode) {
   int actualEndNode = endNode;
@@ -177,9 +172,22 @@ void findShortestPath(int startNode, int endNode) {
       pathLength += 2;
   }
 
+  updateRouteStringProgress();
+
   pathIndex = 0;
 }
 
+void updateRouteStringProgress() {
+  routeStr = "";
+  for (int i = 0; i < pathLength; i++) {
+    if (i == pathIndex) {
+      routeStr += "[" + String(path[i]) + "]"; // Put brackets around current target
+    } else {
+      routeStr += String(path[i]);
+    }
+    if (i < pathLength - 1) routeStr += " -> ";
+  }
+}
 
 void nodeEvent(){
   int arrivalNode;
@@ -222,16 +230,16 @@ void nodeEvent(){
       
       firstRun = false;
 
-      navigating();}
-
-      else {
-        // --- WE ARE AT AN INTERMEDIATE NODE (6 or 7) ---
-        // Do not talk to server. Just turn and keep driving.
-        Serial.println("Intermediate Node - Keep Going");
-        navigating();
+      navigating();
     }
-}
 
+  else {
+    // --- WE ARE AT AN INTERMEDIATE NODE (6 or 7) ---
+    // Do not talk to server. Just turn and keep driving.
+    Serial.println("Intermediate Node - Keep Going");
+    navigating();
+  }
+}
 
 // The Reroute Routine
 void performReroute() {
@@ -247,6 +255,14 @@ void performReroute() {
   // 2. Perform Physical U-Turn
   // This physically points the robot back toward 'lastSafeNode' (Node 0)
   turning(); // Or a custom 180 turn function
+
+  // After path[] and pathLength are updated:
+  updateRouteStr(); 
+  
+  // Force a telemetry send so the dashboard updates the green text box instantly
+  sendTelemetry();
+
+  stateStr = "RE-ROUTING";
 
   // 3. Block the edge in software so Dijkstra won't use it again
   blockEdge(lastSafeNode, blockedNode);
@@ -268,6 +284,13 @@ void performReroute() {
   // Resume loop; the PID will now drive us to path[0] (Node 0).
 }
 
+void updateRouteStr() {
+  routeStr = "";
+  for (int i = 0; i < pathLength; i++) {
+    routeStr += String(path[i]);
+    if (i < pathLength - 1) routeStr += " -> ";
+  }
+}
 
 void turningL() {
   int turnSpeed = 200;  // A manageable speed for rotating
@@ -297,7 +320,6 @@ void turningR() {
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
 }
-
 
 void turning(){
   int turnSpeed = 200; // A manageable speed for rotating
