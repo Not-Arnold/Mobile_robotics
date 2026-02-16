@@ -12,7 +12,7 @@ float readDistanceCm()
 
   // Measure echo pulse width (timeout in microseconds)
   // 30000us ~ up to ~5m (safe), adjust shorter if you want less blocking
-  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 5000);
 
   if (duration == 0) return -1.0;     // no echo / out of range
 
@@ -82,7 +82,6 @@ void driveStraightToParking() {
 
         
         if (dist <= stopDist) {
-          delay(1000);
           notifyArrival(5);
           finished = true;
           Serial.println("Parked.");

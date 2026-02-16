@@ -68,7 +68,7 @@ bool obstacleDetected(int distance) {
   digitalWrite(TRIG_PIN, LOW);
 
   //Serial.println("clear");
-  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  long duration = pulseIn(ECHO_PIN, HIGH, 5000);
   if (duration == 0) return false;
 
   float distanceCm = duration / 58;

@@ -278,7 +278,7 @@ void turningL() {
   digitalWrite(motor2Phase, HIGH);
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(400);
+  delay(250);
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
 }
@@ -293,7 +293,7 @@ void turningR() {
   digitalWrite(motor2Phase, LOW);
   analogWrite(motor2PWM, turnSpeed);
 
-  delay(400);
+  delay(250);
 
   while ((analogRead(AnalogPin[2]) > threshold) && (analogRead(AnalogPin[1]) > threshold) && (analogRead(AnalogPin[3]) > threshold)){}
 }

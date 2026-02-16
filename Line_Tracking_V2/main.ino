@@ -32,16 +32,18 @@ void loop() {
   int error = calculateError();
 
   if (!finished && obstacleDetected(15)) { // 15cm threshold
-        performReroute();
-        // After reroute, we return to top of loop to start PID line following immediately
-        return; 
+    printDistanceAndCheckTarget(10,1);
+    performReroute();
+    // After reroute, we return to top of loop to start PID line following immediately
+    return; 
     }
+    
   if(finished){
     stopMotors();
     while(true) delay(1000);
   }
 
-  if (error == 100 && ((millis() - lasttalktoserver) > 1000)){
+  if (error == 100 && ((millis() - lasttalktoserver) > 500)){
     lasttalktoserver = millis();
     nodeEvent();
     }
@@ -51,5 +53,5 @@ void loop() {
   else {
     calculatePID(error);
   }
-  delay(10); 
+  delay(20); 
 }

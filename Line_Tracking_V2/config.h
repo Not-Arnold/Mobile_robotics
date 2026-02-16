@@ -81,6 +81,6 @@ int SERVO_PIN = 1;
 
 Servo myServo;
 const int servoCentre = 90;
-const int servoMin = 35;
-const int servoMax = 145;
+const int servoMin = 20;
+const int servoMax = 160;
 float servoScale = 1.0;
