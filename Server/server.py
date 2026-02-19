@@ -1,9 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Header, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles # Add this import at the top
 import json
 from typing import List
 
 app = FastAPI()
+
+# Add this line right after "app = FastAPI()"
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 # --- CONNECTION MANAGER ---
 class ConnectionManager:
@@ -28,7 +32,7 @@ INDEX_HTML = r"""
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/><title>Robot Tracker</title>
+  <meta charset="utf-8"/><title>Delivery Tracker</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 20px; }
     .main-layout { display: flex; gap: 20px; justify-content: center; align-items: flex-start; }
@@ -38,7 +42,7 @@ INDEX_HTML = r"""
     #arena { width: 600px; height: 450px; position: relative; z-index: 2; background: transparent; }
     .node { width: 10px; height: 10px; background: #00d2ff; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); z-index: 3; }
     .node-label { font-size: 11px; color: #888; position: absolute; transform: translate(-50%, 12px); z-index: 3; }
-    #car { position: absolute; transition: all 0.4s ease; z-index: 10; transform: translate(-50%, -50%); font-size: 28px; left: -50px; top: -50px;}
+    #car { position: absolute; transition: all 0.4s ease; z-index: 10; transform: translate(-50%, -50%); width: 50px; height: 50px; background-image: url('/assets/car.png'); background-size: contain; background-repeat: no-repeat; left: -50px; top: -50px;}
     
     .stats-sidebar { width: 280px; display: flex; flex-direction: column; gap: 10px; }
     .stat-box { background: #3d3d3d; padding: 15px; border-radius: 10px; text-align: center; border-left: 4px solid #00d2ff; }
@@ -47,13 +51,13 @@ INDEX_HTML = r"""
   </style>
 </head>
 <body>
-  <h2 style="text-align:center; color: #00d2ff; margin-bottom: 30px;">ASUN2881 ROBOT TRACKER</h2>
+  <h2 style="text-align:center; color: #00d2ff; margin-bottom: 30px;">ASUN2881 DELIVERY TRACKER</h2>
   
   <div class="main-layout">
     <div class="card">
       <div id="arena-container">
         <canvas id="map-canvas" width="600" height="450"></canvas>
-        <div id="arena"><div id="car">🏎️</div></div>
+        <div id="arena"><div id="car"></div></div>
       </div>
     </div>
 
@@ -70,6 +74,16 @@ INDEX_HTML = r"""
   </div>
 
 <script>
+    const canvas = document.getElementById('map-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 1. PRELOAD YOUR IMAGES
+    const carImg = new Image();
+    carImg.src = '/assets/car.png'; // REPLACE WITH YOUR CAR URL OR FILENAME
+
+    const obsImg = new Image();
+    obsImg.src = '/assets/obstacle.png'; // REPLACE WITH YOUR OBSTACLE URL OR FILENAME
+
     // --- ELONGATED MAP COORDINATES ---
     const nodeCoords = {
         5: {x: -24, y: 0}, 
@@ -89,21 +103,28 @@ INDEX_HTML = r"""
     let activeObstacles = []; 
 
     function drawMap() {
-        const canvas = document.getElementById('map-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
+        // Use the global ctx we defined at the top
+        if (!ctx) return;
+        
         ctx.clearRect(0, 0, 600, 450);
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+        ctx.strokeStyle = '#555'; 
+        ctx.lineWidth = 4; 
+        ctx.lineCap = 'round';
         
         const drawCurve = (sIdx, eIdx, cpX, cpY) => {
             const s = nodeCoords[sIdx], e = nodeCoords[eIdx];
-            ctx.beginPath(); ctx.moveTo(toPxX(s.x), toPxY(s.y));
-            ctx.quadraticCurveTo(toPxX(cpX), toPxY(cpY), toPxX(e.x), toPxY(e.y)); ctx.stroke();
+            ctx.beginPath(); 
+            ctx.moveTo(toPxX(s.x), toPxY(s.y));
+            ctx.quadraticCurveTo(toPxX(cpX), toPxY(cpY), toPxX(e.x), toPxY(e.y)); 
+            ctx.stroke();
         };
+
         const drawStraight = (sIdx, eIdx) => {
             const s = nodeCoords[sIdx], e = nodeCoords[eIdx];
-            ctx.beginPath(); ctx.moveTo(toPxX(s.x), toPxY(s.y));
-            ctx.lineTo(toPxX(e.x), toPxY(e.y)); ctx.stroke();
+            ctx.beginPath(); 
+            ctx.moveTo(toPxX(s.x), toPxY(s.y));
+            ctx.lineTo(toPxX(e.x), toPxY(e.y)); 
+            ctx.stroke();
         };
 
         // --- DRAW TRACK ---
@@ -120,14 +141,30 @@ INDEX_HTML = r"""
         // --- DRAW OBSTACLES ---
         activeObstacles.forEach(obs => {
             const n1 = nodeCoords[obs.u], n2 = nodeCoords[obs.v];
-            if(n1 && n2) {
-                const midX = toPxX((n1.x + n2.x) / 2);
-                const midY = toPxY((n1.y + n2.y) / 2);
-                ctx.strokeStyle = '#ff4757'; ctx.lineWidth = 6;
-                ctx.beginPath();
-                ctx.moveTo(midX-10, midY-10); ctx.lineTo(midX+10, midY+10);
-                ctx.moveTo(midX+10, midY-10); ctx.lineTo(midX-10, midY+10);
-                ctx.stroke();
+            if(!n1 || !n2) return;
+
+            let midX, midY;
+            const curves = {
+                '6-2': {cpX: 25, cpY: 6},  '2-6': {cpX: 25, cpY: 6},
+                '6-0': {cpX: 25, cpY: -6}, '0-6': {cpX: 25, cpY: -6},
+                '7-3': {cpX: -15, cpY: 6}, '3-7': {cpX: -15, cpY: 6},
+                '7-4': {cpX: -15, cpY: -6},'4-7': {cpX: -15, cpY: -6},
+                '3-2': {cpX: 3, cpY: 12},  '2-3': {cpX: 3, cpY: 12},
+                '0-4': {cpX: 3, cpY: -12}, '4-0': {cpX: 3, cpY: -12}
+            };
+
+            const edgeKey = `${obs.u}-${obs.v}`;
+            if (curves[edgeKey]) {
+                const cp = curves[edgeKey];
+                midX = 0.25 * n1.x + 0.5 * cp.cpX + 0.25 * n2.x;
+                midY = 0.25 * n1.y + 0.5 * cp.cpY + 0.25 * n2.y;
+            } else {
+                midX = (n1.x + n2.x) / 2;
+                midY = (n1.y + n2.y) / 2;
+            }
+
+            if (obsImg.complete) {
+                ctx.drawImage(obsImg, toPxX(midX) - 20, toPxY(midY) - 20, 40, 40);
             }
         });
     }
