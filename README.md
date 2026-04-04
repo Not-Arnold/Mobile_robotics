@@ -11,9 +11,6 @@ Based on the DCU module, __Mobile Robotics__ (EEN1025)
 #### Schematic
 ![Image](./images/Delululu_Schematic.jpeg)
 
-#### Chasis
-NEEDS image
-
 #### Website
 [![Watch Demo](./images/Website_1.png)](https://drive.google.com/file/d/1JAiUc7mTvb7KExruzRiayQwxmRP_U5ZG/view?usp=sharing)
 
