@@ -1,3 +1,14 @@
+// ============================================================
+// Algo.ino — Graph Construction, Pathfinding & Navigation
+// Builds a weighted adjacency list of the track, runs Dijkstra
+// to find shortest paths, and drives turn decisions at each node.
+// ============================================================
+
+// --- PHYSICAL NODE COORDINATES ---
+// Each node's (x, y) position in real-world units.
+// Used by getTurn() to calculate the incoming/outgoing heading
+// and decide whether to go straight, turn left/right, or U-turn.
+
 struct Point {
   float x;
   float y;
@@ -16,6 +27,10 @@ Point nodes[N] = {
   {-10.0, 0.0}  // ID 7 (Left)
 };
 
+// -------------------------------------------------------
+// addEdge — Register a bidirectional weighted edge u↔v
+// Called by buildGraph() to set up the initial track layout.
+// -------------------------------------------------------
 void addEdge(int u, int v, int w) {
   // Add U -> V
   nbr[u][deg[u]] = v;
@@ -28,6 +43,11 @@ void addEdge(int u, int v, int w) {
   deg[v]++;
 }
 
+// -------------------------------------------------------
+// blockEdge — Make edge u↔v impassable (set weight = INF)
+// Called by performReroute() when an obstacle is confirmed
+// so Dijkstra will route around the blocked segment.
+// -------------------------------------------------------
 void blockEdge(int u, int v) {
   // Block U -> V
   for (int i = 0; i < deg[u]; i++) {
@@ -46,23 +66,37 @@ void blockEdge(int u, int v) {
   }
 }
 
+// -------------------------------------------------------
+// buildGraph — Define all edges of the track
+// Must be called once in setup() before any navigation.
+// Edge weight roughly represents physical distance / cost.
+// -------------------------------------------------------
 void buildGraph() {
   // Clear old connections
   for (int i = 0; i < N; i++) deg[i] = 0;
   
-  // 1. Center Line
-  addEdge(1, 6, 10);
-  addEdge(1, 7, 10);
-  addEdge(0, 6, 10);
-  addEdge(6, 2, 10);
-  addEdge(2, 3, 10);
-  addEdge(3, 7, 15);
-  addEdge(7, 4, 15);
-  addEdge(4, 0, 10);
+  // Centre-line connections
+  addEdge(1, 6, 10);   // Centre ↔ Right junction
+  addEdge(1, 7, 10);   // Centre ↔ Left junction
+  addEdge(0, 6, 10);   // Bottom-Right ↔ Right junction
+  addEdge(6, 2, 10);   // Right junction ↔ Top-Right
+  addEdge(2, 3, 10);   // Top-Right ↔ Top-Left
+  addEdge(3, 7, 15);   // Top-Left ↔ Left junction (slightly longer arc)
+  addEdge(7, 4, 15);   // Left junction ↔ Bottom-Left
+  addEdge(4, 0, 10);   // Bottom-Left ↔ Bottom-Right
 
+  // Parking spur — very high weight so Dijkstra ignores it
+  // unless parking is explicitly required.
   addEdge(7, 5, 1000);
 }
 
+// -------------------------------------------------------
+// getTurn — Determine the manoeuvre needed at a junction
+//
+// prev → curr → next defines the robot's current path segment.
+// Returns one of: "STRAIGHT", "LEFT", "RIGHT",
+//                 "U-TURN", "SOFT_U_TURN", "PARK"
+// -------------------------------------------------------
 String getTurn(int prev, int curr, int next) {
   // 1. U-Turn Check
   if (prev == next) return "U-TURN";
@@ -96,7 +130,13 @@ String getTurn(int prev, int curr, int next) {
   return "RIGHT";
 }
 
+// -------------------------------------------------------
+// navigating — Execute the turn/action at the current path node
+// Reads path[pathIndex] and uses getTurn() to pick a manoeuvre,
+// then advances pathIndex so the next call handles the next node.
+// -------------------------------------------------------
 void navigating() {
+  // Determine the three relevant nodes for heading calculation
   int currentNode = path[pathIndex];
   int pre = (pathIndex > 0) ? path[pathIndex - 1] : previousNodeID;
   int cur = path[pathIndex];
@@ -125,6 +165,14 @@ void navigating() {
   pathIndex++;
 }
 
+// -------------------------------------------------------
+// findShortestPath — Dijkstra's algorithm
+//
+// Fills the global path[] array with the optimal route
+// from startNode to endNode, respecting blocked edges.
+// Special handling for Node 5 (parking) forces the approach
+// via Nodes 1 → 7 → 5 so the robot arrives straight.
+// -------------------------------------------------------
 void findShortestPath(int startNode, int endNode) {
   int actualEndNode = endNode;
   
@@ -172,11 +220,14 @@ void findShortestPath(int startNode, int endNode) {
       pathLength += 2;
   }
 
-  updateRouteStringProgress();
-
-  pathIndex = 0;
+  updateRouteStringProgress();  // Refresh the dashboard route string
+  pathIndex = 0;                // Start traversal from the beginning of path[]
 }
 
+// -------------------------------------------------------
+// updateRouteStringProgress — Build the route display string
+// Wraps the current target node in brackets, e.g. "4 -> [6] -> 2"
+// -------------------------------------------------------
 void updateRouteStringProgress() {
   routeStr = "";
   for (int i = 0; i < pathLength; i++) {
@@ -189,6 +240,13 @@ void updateRouteStringProgress() {
   }
 }
 
+// -------------------------------------------------------
+// nodeEvent — Called each time the robot arrives at a node
+//
+// On the first run, or when the final waypoint is reached,
+// it contacts the competition server for the next target.
+// At intermediate junctions it simply calls navigating().
+// -------------------------------------------------------
 void nodeEvent(){
   int arrivalNode;
 
@@ -206,7 +264,7 @@ void nodeEvent(){
   bool isFinalDestination = (pathIndex == pathLength - 1);
 
   if (firstRun || isFinalDestination) {
-
+    // Update previousNodeID so getTurn() has the correct inbound heading
     if (!firstRun) {
           previousNodeID = path[pathIndex - 1]; 
       } else {
@@ -241,7 +299,16 @@ void nodeEvent(){
   }
 }
 
-// The Reroute Routine
+// -------------------------------------------------------
+// performReroute — Emergency obstacle avoidance
+//
+// Called from loop() when the ultrasonic sensor detects
+// something within the threshold distance. The robot:
+//  1. Stops and performs a U-turn back to the last safe node.
+//  2. Permanently blocks the obstructed edge in the graph.
+//  3. Runs Dijkstra again from the safe node to the original target.
+//  4. Resets pathIndex and previousNodeID for correct turn logic.
+// -------------------------------------------------------
 void performReroute() {
   stopMotors();
   Serial.println("Obstacle! Rerouting...");
@@ -284,6 +351,10 @@ void performReroute() {
   // Resume loop; the PID will now drive us to path[0] (Node 0).
 }
 
+// -------------------------------------------------------
+// updateRouteStr — Plain route string (no bracket highlight)
+// Used after a reroute before a new pathIndex is set.
+// -------------------------------------------------------
 void updateRouteStr() {
   routeStr = "";
   for (int i = 0; i < pathLength; i++) {
@@ -292,6 +363,14 @@ void updateRouteStr() {
   }
 }
 
+// -------------------------------------------------------
+// TURNING FUNCTIONS
+// All use the AnalogPin array to detect when the robot has
+// re-acquired the line after completing a rotation.
+// threshold: raw ADC value below which a sensor sees the line.
+// -------------------------------------------------------
+
+// Hard left turn — both motors spin in the same direction
 void turningL() {
   int turnSpeed = 200;  // A manageable speed for rotating
   int threshold = 500;
