@@ -1,20 +1,51 @@
+// ============================================================
+// Wifi.ino — Server Communication & Telemetry
+//
+// Handles:
+// 1. Notifying the competition server when the robot arrives
+//    at a node.
+// 2. Sending live telemetry to the dashboard server.
+// 3. Resetting the dashboard map when the robot reconnects.
+// 4. Running telemetry in a separate FreeRTOS task on Core 0.
+// ============================================================
+
+
+// -------------------------------------------------------
+// notifyArrival — Tell the competition server which node
+// the robot has just reached.
+//
+// Sends a POST request to:
+//   SERVER_BASE/api/arrived/TEAM_ID
+//
+// Body format:
+//   position=<node_id>
+//
+// Returns:
+//   - The server response as a String (usually the next target)
+//   - "" if Wi-Fi is disconnected or the request fails
+// -------------------------------------------------------
 String notifyArrival(int position) {
+  // Abort immediately if Wi-Fi is not connected
   if (WiFi.status() != WL_CONNECTED) {
     return "";
   }
-
+  
+  // Build the arrival endpoint URL
   String url = String(SERVER_BASE) + "/api/arrived/" + TEAM_ID;
 
   HTTPClient http;
   http.begin(url);
 
+  // Server expects form-encoded data
   String body = "position=" + String(position);
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
+  // Send POST request
   int httpCode = http.POST(body);
 
   String destination = "";
 
+  // If request succeeded, read response body
   if (httpCode > 0) {
     destination = http.getString();
     destination.trim();
@@ -23,7 +54,26 @@ String notifyArrival(int position) {
   return destination;
 }
 
+// -------------------------------------------------------
+// sendTelemetry — Push live robot data to the dashboard
+//
+// Sends a JSON payload to:
+//   BASE_URL/telemetry/ROBOT_ID
+//
+// Includes:
+//   - current node
+//   - next target node
+//   - left/right motor PWM
+//   - robot state string
+//   - current route string
+//   - optional obstacle edge if present
+//
+// Uses HTTPS with WiFiClientSecure.
+// setInsecure() disables certificate validation, which is
+// convenient for testing/tunnels but not ideal for production.
+// -------------------------------------------------------
 void sendTelemetry() {
+  // Do nothing if Wi-Fi is down
   if (WiFi.status() != WL_CONNECTED) return;
   
   WiFiClientSecure Client;
@@ -65,6 +115,16 @@ void sendTelemetry() {
   http.end();
 }
 
+// -------------------------------------------------------
+// resetServerMap — Clear the dashboard's remembered obstacles
+// and route display for this robot.
+//
+// Sends a POST request to:
+//   BASE_URL/reset/ROBOT_ID
+//
+// Called once when the telemetry task starts, so the dashboard
+// begins in a clean state after reconnecting or rebooting.
+// -------------------------------------------------------
 void resetServerMap() {
   if (WiFi.status() != WL_CONNECTED) return;
   
@@ -85,9 +145,17 @@ void resetServerMap() {
   http.end();
 }
 
-// --- In Wifi.ino ---
-
-// 1. The background task function
+// -------------------------------------------------------
+// telemetryTask — Background FreeRTOS task for dashboard updates
+//
+// Runs forever on Core 0.
+// Behaviour:
+//   1. Resets dashboard state once on startup
+//   2. Sends telemetry roughly every 500 ms
+//   3. Yields frequently so the system stays stable
+//
+// This keeps network traffic off the main control loop.
+// -------------------------------------------------------
 void telemetryTask(void * pvParameters) {
   Serial.print("Telemetry Task starting on core: ");
   Serial.println(xPortGetCoreID());
@@ -106,7 +174,17 @@ void telemetryTask(void * pvParameters) {
   }
 }
 
-// 2. The function that launches the task
+// -------------------------------------------------------
+// setupMultiCore — Launch the telemetry task on Core 0
+//
+// Task settings:
+//   Name:       "Telemetry"
+//   Stack size: 10000
+//   Priority:   1
+//   Core:       0
+//
+// Your main robot logic can remain on the other core / main loop.
+// -------------------------------------------------------
 void setupMultiCore() {
   xTaskCreatePinnedToCore(
     telemetryTask,    /* Task function */
@@ -118,6 +196,3 @@ void setupMultiCore() {
     0                 /* Pin to Core 0 */
   );
 }
-
-// 3. Keep your sendTelemetry() and resetServerMap() functions here 
-// as they were, but they will now be called by Core 0.
